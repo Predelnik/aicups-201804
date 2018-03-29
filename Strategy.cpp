@@ -4,6 +4,10 @@
 
 #include "GameConfig.h"
 #include "Response.h"
+#include "MyPart.h"
+
+Strategy::Strategy() = default;
+Strategy::~Strategy() = default;
 
 void Strategy::run() {
   std::string data;
@@ -17,15 +21,26 @@ void Strategy::run() {
   }
 }
 
+namespace
+{
+    std::vector<MyPart> to_my_parts (const json &data)
+    {
+        std::vector<MyPart> out (data.size());
+        std::transform(data.begin (), data.end (), out.begin (), [](const json &data){ return MyPart (data); });
+        return out;
+    }
+}
+
 json Strategy::on_tick(const json &data) {
+  m_my_parts = to_my_parts(data["Mine"]);
+
   return on_tick_impl(data).to_json();
 }
 
 Response Strategy::on_tick_impl(const json &data) {
-  auto mine = data["Mine"];
   auto objects = data["Objects"];
-  if (!mine.empty()) {
-    auto first = mine[0];
+  if (!m_my_parts.empty()) {
+    auto &first = m_my_parts.front ();
     auto food = find_food(objects);
     if (!food.empty()) {
       return Response{}.x(food["X"]).y(food["Y"]);
