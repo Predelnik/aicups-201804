@@ -2,6 +2,7 @@
 #include "../nlohmann/json.hpp"
 #include "GameConfig.h"
 #include "Object.h"
+#include <random>
 
 using nlohmann::json;
 
@@ -24,12 +25,13 @@ private:
     Point my_center () const;
 
 private:
-    GameConfig m_cfg;
+    GameConfig m_config;
     std::vector<MyPart> m_my_parts;
     std::vector<Food> m_food;
     std::vector<Ejection> m_ejections;
     std::vector<Player> m_players;
     std::vector<Virus> m_viruses;
+    std::default_random_engine m_re;
 
     Point m_my_center;
 };
