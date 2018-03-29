@@ -3,24 +3,25 @@
 #include <string>
 #include <vector>
 
+#include "GameConfig.h"
+
 using namespace std;
-using json = nlohmann::json;
 
 struct Strategy {
 
 	void run() {
 		string data;
 		cin >> data;
-		auto config = json::parse(data);
+        m_cfg = {json::parse(data)};
 		while (true) {
 			cin >> data;
 			auto parsed = json::parse(data);
-			auto command = on_tick(parsed, config);
+			auto command = on_tick(parsed);
 			cout << command.dump() << endl;
 		}
 	}
 
-	json on_tick(const json &data, const json &config) {
+	json on_tick(const json &data) {
 		auto mine = data["Mine"];
 		auto objects = data["Objects"];
 		if (! mine.empty()) {
@@ -43,6 +44,8 @@ struct Strategy {
 		}
 		return json({});
 	}
+private:
+    GameConfig m_cfg;
 };
 
 int main() {
