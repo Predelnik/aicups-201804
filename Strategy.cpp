@@ -15,7 +15,7 @@ Strategy::~Strategy() = default;
 void Strategy::run() {
   std::string data;
   std::cin >> data;
-  m_config = {json::parse(data)};
+  m_config = GameConfig{json::parse(data)};
   while (true) {
     std::cin >> data;
     auto parsed = json::parse(data);
