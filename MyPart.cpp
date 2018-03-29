@@ -2,8 +2,8 @@
 
 MyPart::MyPart(const json& data)
 {
-    pos.x = data["X"];
-    pos.y = data["Y"];
+    center.x = data["X"];
+    center.y = data["Y"];
     speed.x = data["SX"];
     speed.y = data["SY"];
     radius = data["R"];

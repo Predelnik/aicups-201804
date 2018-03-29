@@ -13,7 +13,7 @@ public:
   double radius = 0.0;
   double mass = 0.0;
   std::string id;
-  Point pos;
+  Point center;
   Point speed;
   int ttf = 0;
 };
