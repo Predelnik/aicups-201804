@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "GameConfig.h"
+#include "Response.h"
 
 void Strategy::run() {
   std::string data;
@@ -17,17 +18,21 @@ void Strategy::run() {
 }
 
 json Strategy::on_tick(const json &data) {
+  return on_tick_impl(data).to_json();
+}
+
+Response Strategy::on_tick_impl(const json &data) {
   auto mine = data["Mine"];
   auto objects = data["Objects"];
   if (!mine.empty()) {
     auto first = mine[0];
     auto food = find_food(objects);
     if (!food.empty()) {
-      return {{"X", food["X"]}, {"Y", food["Y"]}};
+      return Response{}.x(food["X"]).y(food["Y"]);
     }
-    return {{"X", 0}, {"Y", 0}, {"Debug", "No food"}};
+    return Response{}.x(0).y(0).debug("No food");
   }
-  return {{"X", 0}, {"Y", 0}, {"Debug", "Died"}};
+  return Response{}.x(0).y(0).debug("Died");
 }
 
 template <class T> json Strategy::find_food(const T &objects) {
