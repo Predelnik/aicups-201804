@@ -9,9 +9,9 @@ public:
   explicit GameConfig(const json &data);
 
 public:
-  int food_mass = 0;
-  int game_width = 0;
-  int game_height = 0;
+  double food_mass = 0;
+  double game_width = 0;
+  double game_height = 0;
   int game_ticks = 0;
   double inertia_factor = 0;
   int max_fragments_cnt = 0;

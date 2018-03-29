@@ -9,13 +9,13 @@
 #include "algorithm.h"
 #include "overload.h"
 
-Strategy::Strategy() = default;
+Strategy::Strategy() : m_re(std::random_device()()) {}
 Strategy::~Strategy() = default;
 
 void Strategy::run() {
   std::string data;
   std::cin >> data;
-  m_cfg = {json::parse(data)};
+  m_config = {json::parse(data)};
   while (true) {
     std::cin >> data;
     auto parsed = json::parse(data);
@@ -42,6 +42,10 @@ json Strategy::on_tick(const json &data) {
 }
 
 void Strategy::fill_objects(const json &data) {
+  m_food.clear();
+  m_viruses.clear();
+  m_players.clear();
+  m_ejections.clear();
   for (auto &element : data) {
     std::visit(
         overload(
@@ -61,7 +65,13 @@ Response Strategy::generate_response() {
     if (food) {
       return Response{}.pos(food->pos);
     }
-    return Response{}.pos({}).debug("No food");
+
+    // go to random point, act really nervous
+    auto x =
+        std::uniform_real_distribution<double>(0.0, m_config.game_width)(m_re);
+    auto y =
+        std::uniform_real_distribution<double>(0.0, m_config.game_height)(m_re);
+    return Response{}.pos({x, y});
   }
   return Response{}.pos({}).debug("Died");
 }
