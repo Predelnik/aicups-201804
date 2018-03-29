@@ -3,8 +3,8 @@
 json Response::to_json() const
 {
     json out;
-    out["X"] = m_x;
-    out["Y"] = m_y;
+    out["X"] = m_pos.x;
+    out["Y"] = m_pos.y;
     out["DEBUG"] = m_debug;
     return out;
 }
