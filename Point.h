@@ -2,6 +2,8 @@
 #include <array>
 #include <cmath>
 
+#include <vector>
+
 namespace model {
 class World;
 class Game;
@@ -65,3 +67,6 @@ inline std::array<Point, 2> expand(const std::array<Point, 2> &rect,
   return {Point{rect[0].x - amount, rect[0].y - amount},
           Point{rect[1].x + amount, rect[1].y + amount}};
 }
+
+Point center (const std::vector<Point> &points);
+Point weighted_center(const std::vector<std::pair<Point,double>> &points);
