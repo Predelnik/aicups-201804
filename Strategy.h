@@ -1,6 +1,8 @@
 #pragma once
 #include "../nlohmann/json.hpp"
 #include "GameConfig.h"
+#include "Object.h"
+
 using nlohmann::json;
 
 class Response;
@@ -15,9 +17,9 @@ public:
 
 private:
     Response on_tick_impl(const json & data);
-    template <class T>
-    json find_food(const T& objects);
+    const Food* find_food();
 private:
     GameConfig m_cfg;
     std::vector<MyPart> m_my_parts;
+    std::vector<Object> m_objects;
 };
