@@ -49,9 +49,16 @@ void Context::update_my_radius() {
     my_radius = std::max(my_radius, p.center.distance_to(my_center) + p.radius);
 }
 
+void Context::update_total_mass() {
+  my_total_mass = 0.0;
+  for (auto &p : my_parts)
+    my_total_mass += p.mass;
+}
+
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
+  update_total_mass();
 }
 
 void Context::update_my_center() {
