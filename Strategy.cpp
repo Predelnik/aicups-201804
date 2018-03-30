@@ -3,17 +3,26 @@
 #include "Response.h"
 #include "algorithm.h"
 #include "MyPart.h"
+#include "Const.h"
 
 Strategy::Strategy() : m_re(std::random_device()()) {}
 
 const Food *Strategy::find_nearest_food() {
   if (ctx->food.empty())
     return nullptr;
+  auto dist = [&](const Food &food)
+  {
+      for (auto &v : ctx->viruses)
+          if (v.pos.distance_to(food.pos) < ctx->config.virus_radius + ctx->my_radius)
+              return constant::infinity;
+      return food.pos.squared_distance_to(ctx->my_center);
+  };
   auto it =
-      min_element_op(ctx->food.begin(), ctx->food.end(), [&](const Food &food) {
-        return food.pos.squared_distance_to(ctx->my_center);
-      });
-  return &*it;
+      min_element_op(ctx->food.begin(), ctx->food.end(), dist);
+  if (dist(*it) < constant::infinity)
+    return &*it;
+
+  return nullptr;
 }
 
 Response Strategy::continue_movement ()

@@ -21,6 +21,7 @@ public:
 
 private:
   void fill_objects(const json &data);
+  void update_my_radius();
   void update_caches ();
   void update_my_center();
 
@@ -33,5 +34,6 @@ public:
   std::vector<Virus> viruses;
 
   Point my_center;
+  double my_radius;
   int tick = 0;
 };
