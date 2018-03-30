@@ -3,10 +3,13 @@
 #include "../nlohmann/json.hpp"
 using nlohmann::json;
 
+class Point;
+
 class GameConfig {
 public:
   GameConfig() = default;
   explicit GameConfig(const json &data);
+  bool is_point_inside (const Point &point) const;
 
 public:
   double food_mass = 0;
