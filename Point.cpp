@@ -13,6 +13,11 @@ double Point::distance_to(const Point &other) const {
   return std::sqrt(squared_distance_to(other));
 }
 
+double Point::distance_to_line(const Point &a, const Point &b) const {
+  return ((b.y - a.y) * x + (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
+         a.distance_to(b);
+}
+
 double Point::squared_distance_to(const Point &other) const {
   auto x_d = x - other.x;
   auto y_d = y - other.y;
@@ -33,8 +38,9 @@ Point weighted_center(const std::vector<std::pair<Point, double>> &points) {
   Point result;
   for (auto &p : points)
     result += std::get<Point>(p) * std::get<double>(p);
-  result /= std::accumulate(
-      points.begin(), points.end(), 0.0,
-      [](double sum, const auto &point) { return sum += std::get<double>(point); });
+  result /= std::accumulate(points.begin(), points.end(), 0.0,
+                            [](double sum, const auto &point) {
+                              return sum += std::get<double>(point);
+                            });
   return result;
 }
