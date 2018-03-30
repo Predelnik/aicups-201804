@@ -1,10 +1,10 @@
 #include "../nlohmann/json.hpp"
-#include "Strategy.h"
+#include "StrategyManager.h"
 
 using namespace std;
 
 int main() {
-	Strategy strategy;
-	strategy.run();
+	StrategyManager manager;
+	manager.run();
 	return 0;
 }

@@ -1,37 +1,21 @@
-#pragma once
-#include "../nlohmann/json.hpp"
-#include "GameConfig.h"
-#include "Object.h"
+﻿#pragma once
+
 #include <random>
+#include "Context.h"
 
-using nlohmann::json;
-
+class Context;
 class Response;
-class MyPart;
 
-class Strategy {
+class Strategy
+{
 public:
-    Strategy ();
-    ~Strategy ();
-    void run ();
-    json on_tick(const json& data);
+  Strategy ();
+  Response get_response (const Context &context);
 
 private:
-    void fill_objects(const json& data);
-    Response generate_response();
-    const Food* find_nearest_food();
-    void update_my_center();
-    void update_caches();
-    Point my_center () const;
+  const Food* find_nearest_food();
 
 private:
-    GameConfig m_config;
-    std::vector<MyPart> m_my_parts;
-    std::vector<Food> m_food;
-    std::vector<Ejection> m_ejections;
-    std::vector<Player> m_players;
-    std::vector<Virus> m_viruses;
-    std::default_random_engine m_re;
-
-    Point m_my_center;
+  std::default_random_engine m_re;
+  const Context *ctx = nullptr;
 };
