@@ -1,5 +1,6 @@
 #include "GameConfig.h"
 #include "../nlohmann/json.hpp"
+#include "Point.h"
 
 using nlohmann::json;
 
@@ -15,4 +16,9 @@ GameConfig::GameConfig(const json &data) {
   virus_radius = data["VIRUS_RADIUS"];
   virus_split_mass = data["VIRUS_SPLIT_MASS"];
   viscosity = data["VISCOSITY"];
+}
+
+bool GameConfig::is_point_inside(const Point &point) const {
+  return point.x >= 0.0 && point.y >= 0.0 && point.x < game_width &&
+         point.y < game_height;
 }

@@ -14,6 +14,7 @@ public:
 
 private:
   const Food* find_nearest_food();
+    Point future_center(double time);
     Response continue_movement();
 
 private:
@@ -21,4 +22,5 @@ private:
   const Context *ctx = nullptr;
 
   static inline int randomize_frequency = 50;
+  static inline double standing_speed = 1.0;
 };
