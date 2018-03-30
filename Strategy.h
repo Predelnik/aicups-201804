@@ -14,8 +14,11 @@ public:
 
 private:
   const Food* find_nearest_food();
+    Response continue_movement();
 
 private:
   std::default_random_engine m_re;
   const Context *ctx = nullptr;
+
+  static inline int randomize_frequency = 50;
 };

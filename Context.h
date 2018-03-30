@@ -33,4 +33,5 @@ public:
   std::vector<Virus> viruses;
 
   Point my_center;
+  int tick = 0;
 };
