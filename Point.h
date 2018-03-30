@@ -36,6 +36,8 @@ public:
     return {x / len, y / len};
   }
 
+  double distance_to_line(const Point &a, const Point &b) const;
+
   friend Self operator+(const Self &lhs, const Self &rhs) {
     return {lhs.x + rhs.x, lhs.y + rhs.y};
   }
@@ -68,5 +70,5 @@ inline std::array<Point, 2> expand(const std::array<Point, 2> &rect,
           Point{rect[1].x + amount, rect[1].y + amount}};
 }
 
-Point center (const std::vector<Point> &points);
-Point weighted_center(const std::vector<std::pair<Point,double>> &points);
+Point center(const std::vector<Point> &points);
+Point weighted_center(const std::vector<std::pair<Point, double>> &points);

@@ -11,10 +11,13 @@ const Food *Strategy::find_nearest_food() {
   if (ctx->food.empty())
     return nullptr;
   auto dist = [&](const Food &food) {
-    for (auto &v : ctx->viruses)
-      if (v.pos.distance_to(food.pos) <
-          (ctx->config.virus_radius + ctx->my_radius) * 1.05 /*imprecision*/)
+    auto danger_dist =
+        (ctx->config.virus_radius + ctx->my_radius) * 1.05 /*imprecision*/;
+    for (auto &v : ctx->viruses) {
+      if (v.pos.distance_to_line(ctx->my_center, food.pos) < danger_dist)
         return constant::infinity;
+    }
+
     return food.pos.squared_distance_to(ctx->my_center);
   };
   auto it = min_element_op(ctx->food.begin(), ctx->food.end(), dist);
@@ -46,7 +49,7 @@ Response Strategy::get_response(const Context &context) {
 
     {
       static int last_tick = std::numeric_limits<int>::min();
-      if (ctx->my_parts.front ().speed.length() < standing_speed ||
+      if (ctx->my_parts.front().speed.length() < standing_speed ||
           ctx->tick > last_tick + randomize_frequency) {
         auto x = std::uniform_real_distribution<double>(
             0.0, ctx->config.game_width)(m_re);
