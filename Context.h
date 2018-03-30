@@ -22,6 +22,7 @@ public:
 private:
   void fill_objects(const json &data);
   void update_my_radius();
+  void update_total_mass();
   void update_caches ();
   void update_my_center();
 
@@ -35,5 +36,6 @@ public:
 
   Point my_center;
   double my_radius;
+  double my_total_mass;
   int tick = 0;
 };
