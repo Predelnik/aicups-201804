@@ -25,13 +25,16 @@ std::array<Point, 2> rect_around(const Point &pnt, double side) {
 }
 
 Point center(const std::vector<Point> &points) {
-  return std::accumulate(points.begin(), points.end(), Point{}) / static_cast<double> (points.size());
+  return std::accumulate(points.begin(), points.end(), Point{}) /
+         static_cast<double>(points.size());
 }
 
 Point weighted_center(const std::vector<std::pair<Point, double>> &points) {
   Point result;
   for (auto &p : points)
     result += std::get<Point>(p) * std::get<double>(p);
-  result /= static_cast<double> (points.size());
+  result /= std::accumulate(
+      points.begin(), points.end(), 0.0,
+      [](double sum, const auto &point) { return sum += std::get<double>(point); });
   return result;
 }

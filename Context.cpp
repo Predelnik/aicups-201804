@@ -20,6 +20,7 @@ Context::~Context() = default;
 void Context::update_config(const json &data) { config = GameConfig{data}; }
 
 void Context::update(const json &data) {
+  ++tick;
   my_parts = to_my_parts(data["Mine"]);
   fill_objects(data["Objects"]);
   update_caches();
