@@ -43,7 +43,16 @@ void Context::fill_objects(const json &data) {
   }
 }
 
-void Context::update_caches() { update_my_center(); }
+void Context::update_my_radius() {
+  my_radius = 0.0;
+  for (auto &p : my_parts)
+    my_radius = std::max(my_radius, p.center.distance_to(my_center) + p.radius);
+}
+
+void Context::update_caches() {
+  update_my_center();
+  update_my_radius();
+}
 
 void Context::update_my_center() {
   std::vector<std::pair<Point, double>> centers;
