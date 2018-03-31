@@ -171,8 +171,7 @@ double Strategy::cell_priority(const Cell &cell) const {
   double center_shift = (sqrt(2.) * ctx->config.game_width -
                          Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
                              Point(cell[0], cell[1])));
-  return tick_coeff * tick_diff +
-         center_coeff * center_shift;
+  return tick_coeff * tick_diff + center_coeff * center_shift;
 }
 
 Response Strategy::move_to_goal_or_repriotize() {
@@ -183,7 +182,8 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto cell = mark_visited(ctx->my_center);
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
-  auto cur_priority = cell_priority(cell);
+  constexpr auto food_in_sight_priority = 250.0;
+  auto cur_priority = cell_priority(cell) + ctx->food.size () * food_in_sight_priority;
   auto best_priority = cur_priority;
   for (int i = cell[0] - search_resolution; i <= cell[0] + search_resolution;
        ++i)
@@ -216,7 +216,7 @@ const Food *Strategy::find_nearest_food() {
       auto danger_dist =
           (ctx->config.virus_radius + ctx->my_radius) * 1.05 /*imprecision*/;
       for (auto &v : ctx->viruses) {
-        if (v.pos.distance_to_line(ctx->my_center, food.pos) < danger_dist)
+        if (v.pos.distance_to(food.pos) < danger_dist)
           return constant::infinity;
       }
     }
