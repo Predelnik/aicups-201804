@@ -1,4 +1,5 @@
 #include "Object.h"
+#include "Const.h"
 
 ObjectBase::ObjectBase(const json &data) {
   pos.x = data["X"];
@@ -6,6 +7,10 @@ ObjectBase::ObjectBase(const json &data) {
 }
 
 Virus::Virus(const json &data) : ObjectBase(data) { mass = data["M"]; }
+
+bool Player::is_dangerous(double my_mass) const {
+  return mass >= my_mass * constant::eating_mass_coeff;
+}
 
 Player::Player(const json &data) : ObjectBase(data) {
   id = data["Id"];

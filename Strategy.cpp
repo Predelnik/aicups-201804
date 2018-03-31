@@ -4,13 +4,14 @@
 #include "Object.h"
 #include "Response.h"
 #include "algorithm.h"
+#include <queue>
 #include <set>
 
 Strategy::Strategy() : m_re(std::random_device()()) {}
 
 const Player *Strategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
-    if (p.mass >= ctx->my_total_mass * constant::eating_mass_coeff)
+    if (p.is_dangerous(ctx->my_total_mass))
       return &p;
   }
   return nullptr;
@@ -32,13 +33,13 @@ Response Strategy::move_randomly() const {
   return Response{}.pos({x, y});
 }
 
-std::array<int, 2> Strategy::point_cell(const Point &point) const {
+Cell Strategy::point_cell(const Point &point) const {
   return {static_cast<int>(point.x / cell_size),
           static_cast<int>(point.y / cell_size)};
 }
 
 void Strategy::check_visible_squares() {
-  std::set<std::array<int, 2>> to_update;
+  std::set<Cell> to_update;
   for (int i = 0; i < expected_food.size(0); ++i)
     for (int j = 0; j < expected_food.size(1); ++j) {
       bool all_visible = true;
@@ -66,43 +67,115 @@ void Strategy::check_visible_squares() {
   }
 }
 
-void Strategy::update() { check_visible_squares(); }
+void Strategy::update_danger() {
+  danger_map.fill(0.0);
+  auto mark_obj = [this](const Point &pos, double radius) {
+    auto left_top = point_cell(pos - Point{radius, radius});
+    auto bottom_right = point_cell(pos + Point{radius, radius});
+    for (auto ptr : {&left_top, &bottom_right}) {
+      (*ptr)[0] = std::clamp((*ptr)[0], 0, cell_x_cnt - 1);
+      (*ptr)[1] = std::clamp((*ptr)[1], 0, cell_y_cnt - 1);
+    }
+    for (int i = left_top[0]; i <= bottom_right[0]; ++i)
+      for (int j = left_top[1]; j <= bottom_right[1]; ++j)
+        danger_map[i][j] = 1;
+  };
+  if (ctx->my_total_mass > constant::virus_danger_mass)
+    for (auto &v : ctx->viruses) {
+      mark_obj(v.pos, ctx->config.virus_radius + ctx->my_radius);
+    }
+  for (auto &p : ctx->players)
+    if (p.is_dangerous(ctx->my_total_mass))
+      mark_obj(p.pos, (p.radius + ctx->my_radius) * constant::eating_dist_coeff);
+}
 
-Point Strategy::cell_center(const std::array<int, 2> &cell) const {
+void Strategy::update_goal() {
+  if (goal) {
+    if (goal->distance_to(ctx->my_center) < ctx->my_radius)
+      goal = std::nullopt;
+  }
+}
+
+void Strategy::update() {
+  update_goal();
+  check_visible_squares();
+  update_danger();
+}
+
+Response Strategy::next_step_to_goal() {
+  auto goal_cell = point_cell(*goal);
+  if (danger_map[goal_cell] > 0.0) {
+    goal = {};
+    return continue_movement();
+  }
+
+  auto cur_cell = point_cell(ctx->my_center);
+  if (cur_cell == goal_cell)
+    return Response{}.pos(*goal);
+  static multi_vector<Cell, 2> prev;
+  prev.resize(cell_x_cnt, cell_y_cnt);
+  prev.fill({-1, -1});
+  std::queue<Cell> q;
+  q.push(cur_cell);
+  while (!q.empty()) {
+    auto cur = q.front();
+    q.pop();
+    for (int x_dir = -1; x_dir <= 1; ++x_dir)
+      for (int y_dir = -1; y_dir <= 1; ++y_dir) {
+        if (x_dir == 0 && y_dir == 0)
+          continue;
+        auto next_cell = cur;
+        next_cell[0] += x_dir;
+        next_cell[1] += y_dir;
+        if (!is_valid_cell(next_cell))
+            continue;
+        if (prev[next_cell][0] < 0) {
+          prev[next_cell] = cur;
+          if (next_cell == goal_cell) {
+            while (prev[next_cell] != cur_cell)
+              next_cell = prev[next_cell];
+            return Response{}.pos(cell_center(next_cell));
+          }
+          q.push(next_cell);
+        }
+      }
+  }
+  goal = {};
+  return continue_movement();
+}
+
+Point Strategy::cell_center(const Cell &cell) const {
   return {cell[0] * cell_size + cell_size * 0.5,
           cell[1] * cell_size + cell_size * 0.5};
 }
 
 Response Strategy::move_to_more_food() {
   auto cell = point_cell(ctx->my_center);
-  constexpr int search_resolution = 3;
+  auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
   for (int i = cell[0] - search_resolution; i <= cell[0] + search_resolution;
        ++i)
     for (int j = cell[1] - search_resolution; j <= cell[1] + search_resolution;
          ++j) {
-      if (i < 0 || j < 0 || i >= expected_food.size(0) ||
-          j >= expected_food.size(1))
+      if (!is_valid_cell ({i, j}))
         continue;
       if (expected_food[i][j] > expected_food[best_cell[0]][best_cell[1]])
         best_cell = {i, j};
     }
 
   auto nearest_food = find_nearest_food();
-  {
-      static int last_tick = -100;
-      if (ctx->tick > last_tick + new_opportunity_frequency)
-      {
-          last_tick = ctx->tick;
-          if (!nearest_food || expected_food[best_cell[0]][best_cell[1]] >
-                           expected_food[cell[0]][cell[1]] * new_opportunity_coeff)
-            return Response{}.pos(cell_center(best_cell));
-      }
+  if (goal) {
+    return next_step_to_goal();
   }
+
+  if (!nearest_food ||
+      expected_food[best_cell[0]][best_cell[1]] >
+          expected_food[cell[0]][cell[1]] * new_opportunity_coeff)
+    return Response{}.pos(*(goal = cell_center(best_cell)));
   if (nearest_food)
-    return Response{}.pos(nearest_food->pos);
-  else
-    return continue_movement();
+    return Response{}.pos(*(goal = nearest_food->pos));
+
+  return continue_movement();
 }
 
 const Food *Strategy::find_nearest_food() {
@@ -144,6 +217,7 @@ Response Strategy::get_response(const Context &context) {
 
   if (!ctx->my_parts.empty()) {
     if (auto enemy = find_dangerous_enemy()) {
+      goal = {};
       return run_away_from(enemy->pos);
     }
     return move_to_more_food();
@@ -151,9 +225,16 @@ Response Strategy::get_response(const Context &context) {
   return Response{}.pos({}).debug("Died");
 }
 
+bool Strategy::is_valid_cell(const Cell &cell) const {
+  return cell[0] >= 0 && cell[0] < cell_x_cnt && cell[1] >= 0 &&
+         cell[1] < cell_y_cnt;
+}
+
 void Strategy::initialize(const GameConfig &config) {
-  expected_food.resize(config.game_width / cell_size,
-                       config.game_height / cell_size);
+  cell_x_cnt = static_cast<int>(config.game_width / cell_size);
+  cell_y_cnt = static_cast<int>(config.game_height / cell_size);
+  expected_food.resize(cell_x_cnt, cell_y_cnt);
+  danger_map.resize(cell_x_cnt, cell_y_cnt);
   food_expectancy_inc = 4.0 / constant::food_spawn_delay /
                         (expected_food.size(0) * expected_food.size(1));
 }

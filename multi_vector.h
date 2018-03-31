@@ -5,6 +5,7 @@
 #include <array>
 #include <numeric>
 #include <assert.h>
+#include <algorithm>
 
 template <typename T, std::size_t DimensionCnt>
 struct multi_vector;
@@ -143,6 +144,16 @@ public:
     return detail::multi_dim_index_helper<T, DimensionCnt, DimensionCnt, true> {*this, 0}[index];
   }
 
+  T &operator[](const std::array<int, DimensionCnt> &index)
+  {
+    return v[std::inner_product(index.begin (), std::prev(index.end ()), sizes.begin (), 0ull) + index.back ()];
+  }
+
+  const T &operator[](const std::array<int, DimensionCnt> &index) const
+  {
+    return v[std::inner_product(index.begin (), std::prev(index.end ()), sizes.begin (), 0ull) + index.back ()];
+  }
+
   inner_iterator begin ()        { return v.begin (); }
   inner_iterator end ()          { return v.end (); }
   inner_iterator begin ()  const { return v.begin (); }
@@ -168,6 +179,8 @@ public:
   }
   template <int Dimension>
   std::size_t get_size () const { return sizes[Dimension]; }
+
+  void fill (const T &data) { std::fill (v.begin (), v.end (), data); }
 
 private:
   void update_storage_size () {
