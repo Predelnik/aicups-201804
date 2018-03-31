@@ -4,6 +4,7 @@
 #include "Object.h"
 #include "Response.h"
 #include "algorithm.h"
+#include <set>
 
 Strategy::Strategy() : m_re(std::random_device()()) {}
 
@@ -30,6 +31,42 @@ Response Strategy::move_randomly() const {
       m_re);
   return Response{}.pos({x, y});
 }
+
+std::array<int, 2> Strategy::point_cell(const Point &point) const {
+  return {static_cast<int>(point.x / cell_size),
+          static_cast<int>(point.y / cell_size)};
+}
+
+void Strategy::check_visible_squares() {
+  std::set<std::array<int, 2>> to_update;
+  for (int i = 0; i < expected_food.size(0); ++i)
+    for (int j = 0; j < expected_food.size(1); ++j) {
+      bool all_visible = true;
+      for (int h = 0; h < 2; ++h)
+        for (int v = 0; v < 2; ++v) {
+          all_visible = all_visible &&
+                        is_visible(ctx->my_parts, Point((i + h) * cell_size,
+                                                        (j + v) * cell_size));
+          if (!all_visible)
+            break;
+        }
+      if (all_visible)
+        to_update.insert({i, j});
+    }
+  for (int i = 0; i < expected_food.size(0); ++i)
+    for (int j = 0; j < expected_food.size(1); ++j)
+      if (to_update.count({i, j}) == 0)
+        expected_food[i][j] += food_expectancy_inc;
+      else
+        expected_food[i][j] = 0.0;
+  for (auto &f : ctx->food) {
+    auto cell = point_cell(f.pos);
+    if (to_update.count(cell))
+      expected_food[cell[0]][cell[1]] += 1.0;
+  }
+}
+
+void Strategy::update() { check_visible_squares(); }
 
 const Food *Strategy::find_nearest_food() {
   if (ctx->food.empty())
@@ -66,6 +103,8 @@ Response Strategy::continue_movement() {
 
 Response Strategy::get_response(const Context &context) {
   ctx = &context;
+  update();
+
   if (!ctx->my_parts.empty()) {
     if (auto enemy = find_dangerous_enemy()) {
       return run_away_from(enemy->pos);
@@ -88,4 +127,11 @@ Response Strategy::get_response(const Context &context) {
     }
   }
   return Response{}.pos({}).debug("Died");
+}
+
+void Strategy::initialize(const GameConfig &config) {
+  expected_food.resize(config.game_width / cell_size,
+                       config.game_height / cell_size);
+  food_expectancy_inc = 4.0 / constant::food_spawn_delay /
+                        (expected_food.size(0) * expected_food.size(1));
 }
