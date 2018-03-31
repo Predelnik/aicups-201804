@@ -31,6 +31,7 @@ public:
 class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
+  bool is_dangerous (double my_mass) const;
 
 public:
   double mass;
