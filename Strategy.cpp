@@ -68,6 +68,29 @@ void Strategy::check_visible_squares() {
 
 void Strategy::update() { check_visible_squares(); }
 
+Point Strategy::cell_center(const std::array<int, 2> &cell) const {
+  return {cell[0] * cell_size + cell_size * 0.5,
+          cell[1] * cell_size + cell_size * 0.5};
+}
+
+Response Strategy::move_to_more_food() {
+  auto cell = point_cell(ctx->my_center);
+  constexpr int search_resolution = 3;
+  auto best_cell = cell;
+  for (int i = cell[0] - search_resolution; i <= cell[0] + search_resolution;
+       ++i)
+    for (int j = cell[1] - search_resolution; j <= cell[1] + search_resolution;
+         ++j) {
+      if (i < 0 || j < 0 || i >= expected_food.size(0) ||
+          j >= expected_food.size(1))
+        continue;
+      if (expected_food[i][j] >
+          expected_food[best_cell[0]][best_cell[1]])
+        best_cell = {i, j};
+    }
+  return Response{}.pos(cell_center(best_cell));
+}
+
 const Food *Strategy::find_nearest_food() {
   if (ctx->food.empty())
     return nullptr;
@@ -120,7 +143,7 @@ Response Strategy::get_response(const Context &context) {
           ctx->tick > last_tick + randomize_frequency) {
 
         last_tick = ctx->tick;
-        return move_randomly();
+        return move_to_more_food();
       }
 
       return continue_movement();
