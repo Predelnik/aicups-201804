@@ -8,7 +8,7 @@ ObjectBase::ObjectBase(const json &data) {
 
 Virus::Virus(const json &data) : ObjectBase(data) { mass = data["M"]; }
 
-bool Player::is_dangerous(double my_mass) const {
+bool Player::can_eat(double my_mass) const {
   return mass >= my_mass * constant::eating_mass_coeff;
 }
 
