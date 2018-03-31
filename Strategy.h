@@ -16,6 +16,7 @@ public:
   Response move_randomly() const;
   void check_visible_squares();
   void update();
+  Response move_to_more_food();
   Response get_response(const Context &context);
   void initialize(const GameConfig &config);
 
@@ -24,6 +25,7 @@ private:
   Point future_center(double time);
   Response continue_movement();
   std::array<int, 2> point_cell (const Point &point) const;
+  Point cell_center(const std::array<int, 2> &cell) const;
 
 private:
   mutable std::default_random_engine m_re;
