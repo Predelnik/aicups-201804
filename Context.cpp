@@ -4,6 +4,7 @@
 #include "overload.h"
 
 #include <variant>
+#include "algorithm.h"
 
 namespace {
 std::vector<MyPart> to_my_parts(const json &data) {
@@ -46,7 +47,7 @@ void Context::fill_objects(const json &data) {
 void Context::update_my_radius() {
   my_radius = 0.0;
   for (auto &p : my_parts)
-    my_radius = std::max(my_radius, p.center.distance_to(my_center) + p.radius);
+    my_radius = std::max(my_radius, p.pos.distance_to(my_center) + p.radius);
 }
 
 void Context::update_total_mass() {
@@ -55,15 +56,24 @@ void Context::update_total_mass() {
     my_total_mass += p.mass;
 }
 
+void Context::update_largest_part() {
+  if (my_parts.empty()) {
+    my_largest_part = nullptr;
+    return;
+  }
+  my_largest_part = &*max_element_op(my_parts.begin(), my_parts.end(), [](const MyPart &part){ return part.mass;});
+}
+
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
   update_total_mass();
+  update_largest_part();
 }
 
 void Context::update_my_center() {
   std::vector<std::pair<Point, double>> centers;
   for (auto &p : my_parts)
-    centers.emplace_back(p.center, p.mass);
+    centers.emplace_back(p.pos, p.mass);
   my_center = weighted_center(centers);
 }

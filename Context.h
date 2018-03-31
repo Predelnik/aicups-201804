@@ -23,6 +23,7 @@ private:
   void fill_objects(const json &data);
   void update_my_radius();
   void update_total_mass();
+    void update_largest_part();
   void update_caches ();
   void update_my_center();
 
@@ -38,4 +39,5 @@ public:
   double my_radius;
   double my_total_mass;
   int tick = 0;
+  MyPart *my_largest_part = nullptr;
 };

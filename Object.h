@@ -11,6 +11,8 @@ class ObjectBase {
 public:
   ObjectBase(const json &data);
 
+protected:
+  ObjectBase () = default;
 public:
   Point pos;
 };
@@ -31,11 +33,14 @@ public:
 class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
-  bool is_dangerous (double my_mass) const;
+  bool can_eat (double my_mass) const;
+
+protected:
+  Player () = default;
 
 public:
-  double mass;
-  double radius;
+  double mass = 0.0;
+  double radius = 0.0;
   std::string id;
 };
 

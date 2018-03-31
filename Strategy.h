@@ -19,7 +19,8 @@ public:
 
 private:
   const Player *find_dangerous_enemy();
-  Response run_away_from(const Point &pos) const;
+    const Player* find_weak_enemy();
+    Response run_away_from(const Point &pos) const;
   Response move_randomly() const;
   void check_visible_squares();
   void update_danger();
@@ -27,7 +28,7 @@ private:
   void update_blocked_cells();
   void update();
   Response next_step_to_goal();
-  Response move_to_more_food();
+  Response move_to_goal_or_repriotize();
   const Food *find_nearest_food();
   Point future_center(double time);
   Response continue_movement();

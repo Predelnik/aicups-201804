@@ -11,9 +11,25 @@ Strategy::Strategy() : m_re(std::random_device()()) {}
 
 const Player *Strategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
-    if (p.is_dangerous(ctx->my_total_mass))
+    if (p.can_eat(ctx->my_total_mass))
       return &p;
   }
+  return nullptr;
+}
+
+const Player *Strategy::find_weak_enemy() {
+  auto get_mass = [this](const Player &pl) {
+    if (!ctx->my_largest_part || !ctx->my_largest_part->can_eat(pl.mass))
+      return constant::infinity;
+    return pl.mass;
+  };
+  if (ctx->players.empty())
+    return nullptr;
+
+  auto it = min_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
+  if (get_mass(*it) < constant::infinity)
+    return &*it;
+
   return nullptr;
 }
 
@@ -73,7 +89,7 @@ void Strategy::update_danger() {
       mark_obj(v.pos, ctx->config.virus_radius + ctx->my_radius);
     }
   for (auto &p : ctx->players)
-    if (p.is_dangerous(ctx->my_total_mass))
+    if (p.can_eat(ctx->my_total_mass))
       mark_obj(p.pos,
                (p.radius + ctx->my_radius) * constant::eating_dist_coeff);
 }
@@ -85,18 +101,17 @@ void Strategy::update_goal() {
   }
 }
 
-void Strategy::update_blocked_cells()
-{
+void Strategy::update_blocked_cells() {
   for (auto &val : blocked_cell)
-      if (val > 0)
-          --val;
+    if (val > 0)
+      --val;
 }
 
 void Strategy::update() {
   update_goal();
   check_visible_squares();
   update_danger();
-  update_blocked_cells ();
+  update_blocked_cells();
 }
 
 Response Strategy::next_step_to_goal() {
@@ -149,16 +164,22 @@ Point Strategy::cell_center(const Cell &cell) const {
 
 double Strategy::cell_priority(const Cell &cell) const {
   constexpr auto tick_coeff = 1.0;
-  constexpr auto center_coeff = 1.0;
+  constexpr auto center_coeff = 0.05;
   if (danger_map[cell] > 0.0)
     return 0.0;
-  return (ctx->tick - last_tick_visited[cell]) * tick_coeff +
-         center_coeff * (sqrt (2.) * ctx->config.game_width -
-             Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
-                 Point (cell[0], cell[1])));
+  double tick_diff = (ctx->tick - last_tick_visited[cell]);
+  double center_shift = (sqrt(2.) * ctx->config.game_width -
+                         Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
+                             Point(cell[0], cell[1])));
+  return tick_coeff * tick_diff +
+         center_coeff * center_shift;
 }
 
-Response Strategy::move_to_more_food() {
+Response Strategy::move_to_goal_or_repriotize() {
+  if (goal) {
+    return next_step_to_goal();
+  }
+
   auto cell = mark_visited(ctx->my_center);
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
@@ -178,9 +199,6 @@ Response Strategy::move_to_more_food() {
     }
 
   auto nearest_food = find_nearest_food();
-  if (goal) {
-    return next_step_to_goal();
-  }
 
   if (!nearest_food || best_priority > cur_priority * new_opportunity_coeff)
     return Response{}.pos(*(goal = cell_center(best_cell)));
@@ -239,7 +257,11 @@ Response Strategy::get_response(const Context &context) {
       goal = {};
       return run_away_from(enemy->pos);
     }
-    return move_to_more_food();
+    if (auto enemy = find_weak_enemy()) {
+      goal = enemy->pos;
+    }
+
+    return move_to_goal_or_repriotize();
   }
   return Response{}.pos({}).debug("Died");
 }
