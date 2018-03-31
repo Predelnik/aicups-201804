@@ -84,11 +84,25 @@ Response Strategy::move_to_more_food() {
       if (i < 0 || j < 0 || i >= expected_food.size(0) ||
           j >= expected_food.size(1))
         continue;
-      if (expected_food[i][j] >
-          expected_food[best_cell[0]][best_cell[1]])
+      if (expected_food[i][j] > expected_food[best_cell[0]][best_cell[1]])
         best_cell = {i, j};
     }
-  return Response{}.pos(cell_center(best_cell));
+
+  auto nearest_food = find_nearest_food();
+  {
+      static int last_tick = -100;
+      if (ctx->tick > last_tick + new_opportunity_frequency)
+      {
+          last_tick = ctx->tick;
+          if (!nearest_food || expected_food[best_cell[0]][best_cell[1]] >
+                           expected_food[cell[0]][cell[1]] * new_opportunity_coeff)
+            return Response{}.pos(cell_center(best_cell));
+      }
+  }
+  if (nearest_food)
+    return Response{}.pos(nearest_food->pos);
+  else
+    return continue_movement();
 }
 
 const Food *Strategy::find_nearest_food() {
@@ -132,22 +146,7 @@ Response Strategy::get_response(const Context &context) {
     if (auto enemy = find_dangerous_enemy()) {
       return run_away_from(enemy->pos);
     }
-
-    if (auto food = find_nearest_food()) {
-      return Response{}.pos(food->pos);
-    }
-
-    {
-      static int last_tick = std::numeric_limits<int>::min();
-      if (ctx->my_parts.front().speed.length() < standing_speed ||
-          ctx->tick > last_tick + randomize_frequency) {
-
-        last_tick = ctx->tick;
-        return move_to_more_food();
-      }
-
-      return continue_movement();
-    }
+    return move_to_more_food();
   }
   return Response{}.pos({}).debug("Died");
 }
