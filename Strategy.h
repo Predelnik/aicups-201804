@@ -33,7 +33,7 @@ private:
   Point future_center(double time);
   Response continue_movement();
   Response stop();
-  Cell mark_visited(const Point &point) const;
+  Cell point_cell(const Point &point) const;
   Point cell_center(const Cell &cell) const;
   bool is_valid_cell(const Cell &cell) const;
   double cell_priority(const Cell &cell) const;

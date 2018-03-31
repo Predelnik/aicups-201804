@@ -49,7 +49,7 @@ Response Strategy::move_randomly() const {
   return Response{}.pos({x, y});
 }
 
-Cell Strategy::mark_visited(const Point &point) const {
+Cell Strategy::point_cell(const Point &point) const {
   return {static_cast<int>(point.x / cell_size),
           static_cast<int>(point.y / cell_size)};
 }
@@ -74,8 +74,8 @@ void Strategy::check_visible_squares() {
 void Strategy::update_danger() {
   danger_map.fill(0.0);
   auto mark_obj = [this](const Point &pos, double radius) {
-    auto left_top = mark_visited(pos - Point{radius, radius});
-    auto bottom_right = mark_visited(pos + Point{radius, radius});
+    auto left_top = point_cell(pos - Point{radius, radius});
+    auto bottom_right = point_cell(pos + Point{radius, radius});
     for (auto ptr : {&left_top, &bottom_right}) {
       (*ptr)[0] = std::clamp((*ptr)[0], 0, cell_x_cnt - 1);
       (*ptr)[1] = std::clamp((*ptr)[1], 0, cell_y_cnt - 1);
@@ -84,6 +84,11 @@ void Strategy::update_danger() {
       for (int j = left_top[1]; j <= bottom_right[1]; ++j)
         danger_map[i][j] = 1;
   };
+  int cells_radius = static_cast<int> (ctx->my_radius / cell_size);
+  for (int i = 0; i < cell_x_cnt; ++i)
+      for (int j = 0; j < cell_y_cnt; ++j)
+          if (i < cells_radius || cell_x_cnt - 1 - i < cells_radius || j < cells_radius || cell_y_cnt - 1 - j < cells_radius)
+              danger_map[i][j] = 1;
   if (ctx->my_total_mass > constant::virus_danger_mass)
     for (auto &v : ctx->viruses) {
       mark_obj(v.pos, ctx->config.virus_radius + ctx->my_radius);
@@ -115,13 +120,13 @@ void Strategy::update() {
 }
 
 Response Strategy::next_step_to_goal() {
-  auto goal_cell = mark_visited(*goal);
+  auto goal_cell = point_cell(*goal);
   if (danger_map[goal_cell] > 0.0) {
     goal = {};
     return stop();
   }
 
-  auto cur_cell = mark_visited(ctx->my_center);
+  auto cur_cell = point_cell(ctx->my_center);
   if (cur_cell == goal_cell)
     return Response{}.pos(*goal);
   static multi_vector<Cell, 2> prev;
@@ -141,6 +146,8 @@ Response Strategy::next_step_to_goal() {
         next_cell[1] += y_dir;
         if (!is_valid_cell(next_cell))
           continue;
+        if (danger_map[next_cell] > 0.0)
+            continue;
         if (prev[next_cell][0] < 0) {
           prev[next_cell] = cur;
           if (next_cell == goal_cell) {
@@ -179,7 +186,7 @@ Response Strategy::move_to_goal_or_repriotize() {
     return next_step_to_goal();
   }
 
-  auto cell = mark_visited(ctx->my_center);
+  auto cell = point_cell(ctx->my_center);
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
   constexpr auto food_in_sight_priority = 250.0;
