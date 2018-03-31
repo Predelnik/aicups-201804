@@ -227,6 +227,17 @@ const Food *Strategy::find_nearest_food() {
           return constant::infinity;
       }
     }
+    for (int i = 0; i < 2;++i)
+        for (int j = 0; j < 2;++j)
+        {
+            Point corner (i * ctx->config.game_width, j * ctx->config.game_height);
+            if (corner.distance_to(food.pos) > ctx->my_radius)
+                continue;
+            corner.x = fabs (corner.x - ctx->my_radius);
+            corner.y = fabs (corner.y - ctx->my_radius);
+            if (corner.distance_to(food.pos) > ctx->my_radius)
+                return constant::infinity;
+        }
 
     return food.pos.squared_distance_to(ctx->my_center);
   };
