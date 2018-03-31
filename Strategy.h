@@ -36,4 +36,6 @@ private:
   static inline int randomize_frequency = 50;
   static inline double standing_speed = 1.0;
   static inline double cell_size = 30.0;
+  static inline double new_opportunity_coeff = 2.0; // if expected food amount around near is more than this coeff * amount in current cell then go there
+  static inline int new_opportunity_frequency = 30;
 };
