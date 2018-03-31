@@ -3,8 +3,8 @@
 #include "Context.h"
 #include "multi_vector.h"
 #include <array>
-#include <random>
 #include <optional>
+#include <random>
 
 class Context;
 class Response;
@@ -19,8 +19,8 @@ public:
 
 private:
   const Player *find_dangerous_enemy();
-    const Player* find_weak_enemy();
-    Response run_away_from(const Point &pos) const;
+  const Player *find_weak_enemy();
+  Response run_away_from(const Point &pos) const;
   Response move_randomly() const;
   void check_visible_squares();
   void update_danger();
@@ -32,11 +32,11 @@ private:
   const Food *find_nearest_food();
   Point future_center(double time);
   Response continue_movement();
-    Response stop();
-    Cell mark_visited(const Point &point) const;
+  Response stop();
+  Cell mark_visited(const Point &point) const;
   Point cell_center(const Cell &cell) const;
-  bool is_valid_cell (const Cell &cell) const;
-  double Strategy::cell_priority (const Cell &cell) const;
+  bool is_valid_cell(const Cell &cell) const;
+  double cell_priority(const Cell &cell) const;
 
 private:
   mutable std::default_random_engine m_re;
