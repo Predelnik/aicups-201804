@@ -33,7 +33,7 @@ public:
 class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
-  bool can_eat (double my_mass) const;
+  bool can_eat (double opponent_mass) const;
 
 protected:
   Player () = default;
