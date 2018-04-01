@@ -29,7 +29,7 @@ private:
   void update_blocked_cells();
   void update_enemies_seen();
   void update();
-  Response next_step_to_goal();
+  Response next_step_to_goal(double max_danger_level);
   Response move_to_goal_or_repriotize();
   const Food *find_nearest_food();
   Point future_center(double time);

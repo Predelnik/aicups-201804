@@ -115,7 +115,7 @@ void Strategy::update_danger() {
         danger_map[i][j] = 1;
   if (ctx->my_total_mass > constant::virus_danger_mass)
     for (auto &v : ctx->viruses) {
-      fill_circle(danger_map, 1.0, v.pos,
+      fill_circle(danger_map, 0.5, v.pos,
                   ctx->config.virus_radius + ctx->my_radius);
     }
   for (auto &p : ctx->players)
@@ -151,9 +151,9 @@ void Strategy::update() {
   update_enemies_seen();
 }
 
-Response Strategy::next_step_to_goal() {
+Response Strategy::next_step_to_goal(double max_danger_level) {
   auto goal_cell = point_cell(*goal);
-  if (danger_map[goal_cell] > 0.0) {
+  if (danger_map[goal_cell] > max_danger_level) {
     goal = {};
     return stop();
   }
@@ -178,7 +178,7 @@ Response Strategy::next_step_to_goal() {
         next_cell[1] += y_dir;
         if (!is_valid_cell(next_cell))
           continue;
-        if (danger_map[next_cell] > 0.0)
+        if (danger_map[next_cell] > max_danger_level)
           continue;
         if (prev[next_cell][0] < 0) {
           prev[next_cell] = cur;
@@ -191,6 +191,9 @@ Response Strategy::next_step_to_goal() {
         }
       }
   }
+  if (max_danger_level < 0.1)
+      return next_step_to_goal (0.6);
+
   blocked_cell[goal_cell] = blocked_cell_recheck_frequency;
   goal = {};
   return stop();
@@ -218,7 +221,7 @@ double Strategy::cell_priority(const Cell &cell) const {
 
 Response Strategy::move_to_goal_or_repriotize() {
   if (goal) {
-    return next_step_to_goal();
+    return next_step_to_goal(0.1);
   }
 
   auto cell = point_cell(ctx->my_center);
@@ -354,8 +357,10 @@ void Strategy::initialize(const GameConfig &config) {
 
 bool Strategy::try_run_away_from(const Point &enemy_pos) {
   auto try_point = [this](const Point &next_point) {
+    auto cell = point_cell(next_point);
     if (ctx->config.is_point_inside(next_point) &&
-        danger_map[point_cell(next_point)] < constant::eps) {
+        danger_map[cell] < constant::eps &&
+        blocked_cell[cell] == 0) {
       goal = next_point;
       return true;
     }
