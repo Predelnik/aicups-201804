@@ -1,6 +1,7 @@
 #include "Point.h"
 #include <cmath>
 #include <numeric>
+#include "Matrix.h"
 
 bool Point::is_null() const { return fabs(x) < 1e-5 && fabs(y) < 1e-5; }
 
@@ -16,6 +17,11 @@ double Point::distance_to(const Point &other) const {
 double Point::distance_to_line(const Point &a, const Point &b) const {
   return ((b.y - a.y) * x + (b.x - a.x) * y + b.x * a.y - b.y * a.x) /
          a.distance_to(b);
+}
+
+auto Point::operator*(const Matrix& m) -> Self
+{
+    return {x * m.m[0] + y * m.m[2], x * m.m[1] + y * m.m[3]};
 }
 
 double Point::squared_distance_to(const Point &other) const {

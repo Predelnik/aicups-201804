@@ -18,9 +18,9 @@ public:
   void initialize(const GameConfig &config);
 
 private:
+    bool try_run_away_from(const Point& enemy_pos);
   const Player *find_dangerous_enemy();
   const Player *find_weak_enemy();
-  Response run_away_from(const Point &pos) const;
   Response move_randomly() const;
   void check_visible_squares();
   void update_danger();
