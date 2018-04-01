@@ -1,4 +1,5 @@
 #include "Matrix.h"
+#include <cmath>
 
 auto Matrix::rotation(double angle) -> Self
 {
