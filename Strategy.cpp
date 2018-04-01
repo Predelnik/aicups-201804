@@ -64,6 +64,20 @@ void Strategy::check_visible_squares() {
     }
 }
 
+template <typename T>
+void Strategy::fill_circle(multi_vector<T, 2> &target, const T &val,
+                           const Point &pos, double radius) {
+  auto left_top = point_cell(pos - Point{radius, radius});
+  auto bottom_right = point_cell(pos + Point{radius, radius});
+  for (auto ptr : {&left_top, &bottom_right}) {
+    (*ptr)[0] = std::clamp((*ptr)[0], 0, cell_x_cnt - 1);
+    (*ptr)[1] = std::clamp((*ptr)[1], 0, cell_y_cnt - 1);
+  }
+  for (int i = left_top[0]; i <= bottom_right[0]; ++i)
+    for (int j = left_top[1]; j <= bottom_right[1]; ++j)
+      target[i][j] = val;
+}
+
 void Strategy::update_danger() {
   danger_map.fill(0.0);
   auto mark_obj = [this](const Point &pos, double radius) {
@@ -85,12 +99,13 @@ void Strategy::update_danger() {
         danger_map[i][j] = 1;
   if (ctx->my_total_mass > constant::virus_danger_mass)
     for (auto &v : ctx->viruses) {
-      mark_obj(v.pos, ctx->config.virus_radius + ctx->my_radius);
+      fill_circle(danger_map, 1.0, v.pos,
+                  ctx->config.virus_radius + ctx->my_radius);
     }
   for (auto &p : ctx->players)
     if (p.can_eat(ctx->my_total_mass))
-      mark_obj(p.pos,
-               (p.radius + ctx->my_radius) * constant::eating_dist_coeff);
+      fill_circle(danger_map, 1.0, p.pos,
+                  (p.radius + ctx->my_radius) * constant::eating_dist_coeff);
 }
 
 void Strategy::update_goal() {
@@ -106,11 +121,18 @@ void Strategy::update_blocked_cells() {
       --val;
 }
 
+void Strategy::update_enemies_seen() {
+  for (auto &p : ctx->players)
+    if (p.can_eat(ctx->my_total_mass))
+      fill_circle(dangerous_enemy_seen_tick, ctx->tick, p.pos, p.radius);
+}
+
 void Strategy::update() {
   update_goal();
   check_visible_squares();
   update_danger();
   update_blocked_cells();
+  update_enemies_seen();
 }
 
 Response Strategy::next_step_to_goal() {
@@ -165,14 +187,17 @@ Point Strategy::cell_center(const Cell &cell) const {
 
 double Strategy::cell_priority(const Cell &cell) const {
   constexpr auto tick_coeff = 1.0;
-  constexpr auto center_coeff = 0.05;
+  constexpr auto center_coeff = 0.001;
+  constexpr auto enemy_seen_tick_coeff = 10.0;
   if (danger_map[cell] > 0.0)
     return 0.0;
   double tick_diff = (ctx->tick - last_tick_visited[cell]);
   double center_shift = (sqrt(2.) * ctx->config.game_width -
                          Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
                              Point(cell[0], cell[1])));
-  return tick_coeff * tick_diff + center_coeff * center_shift;
+  double enemy_seen_tick_diff = (ctx->tick - dangerous_enemy_seen_tick[cell]);
+  return tick_coeff * tick_diff + center_coeff * center_shift +
+         enemy_seen_tick_coeff * enemy_seen_tick_diff;
 }
 
 Response Strategy::move_to_goal_or_repriotize() {
@@ -293,7 +318,9 @@ void Strategy::initialize(const GameConfig &config) {
   resize_arr(danger_map);
   resize_arr(last_tick_visited);
   resize_arr(blocked_cell);
+  resize_arr(dangerous_enemy_seen_tick);
   last_tick_visited.fill(-100);
+  dangerous_enemy_seen_tick.fill(-100);
 }
 
 bool Strategy::try_run_away_from(const Point &enemy_pos) {
