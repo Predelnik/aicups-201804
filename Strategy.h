@@ -51,7 +51,7 @@ private:
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;
   static constexpr double standing_speed = 1.0;
-  static constexpr double cell_size = 30.0;
+  static constexpr double cell_size = 15.0;
   static constexpr double new_opportunity_coeff =
       2.0; // if expected food amount around near is more than this coeff *
            // amount in current cell then go there
