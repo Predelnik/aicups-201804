@@ -305,7 +305,7 @@ bool Strategy::try_run_away_from(const Point &enemy_pos) {
     }
     return false;
   };
-  auto vec = (ctx->my_center - enemy_pos).normalized() * cell_size * 3.0;
+  auto vec = (ctx->my_center - enemy_pos).normalized() * 150.0;
   double angle = 0;
   double angle_inc = constant::pi / 16;
   while (angle < constant::pi) {
