@@ -105,7 +105,7 @@ void Strategy::update_danger() {
   for (auto &p : ctx->players)
     if (p.can_eat(ctx->my_total_mass))
       fill_circle(danger_map, 1.0, p.pos,
-                  (p.radius + ctx->my_radius) * constant::eating_dist_coeff);
+                  p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
 
 void Strategy::update_goal() {
@@ -241,7 +241,7 @@ const Food *Strategy::find_nearest_food() {
   auto dist = [&](const Food &food) {
     if (ctx->my_total_mass > constant::virus_danger_mass) {
       auto danger_dist =
-          (ctx->config.virus_radius + ctx->my_radius) * 1.05 /*imprecision*/;
+          ctx->config.virus_radius * constant::interaction_dist_coeff + ctx->my_radius;
       for (auto &v : ctx->viruses) {
         if (v.pos.distance_to(food.pos) < danger_dist)
           return constant::infinity;
