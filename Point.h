@@ -4,6 +4,8 @@
 
 #include <vector>
 
+class Matrix;
+
 namespace model {
 class World;
 class Game;
@@ -54,6 +56,8 @@ public:
 
   Self operator*(double mult) const { return {x * mult, y * mult}; }
   Self operator/(double mult) const { return {x / mult, y / mult}; }
+
+  Self operator*(const Matrix &m);
 
   Self &operator/=(double mult) {
     *this = *this / mult;

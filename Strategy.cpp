@@ -1,5 +1,6 @@
 ﻿#include "Strategy.h"
 #include "Const.h"
+#include "Matrix.h"
 #include "MyPart.h"
 #include "Object.h"
 #include "Response.h"
@@ -31,14 +32,6 @@ const Player *Strategy::find_weak_enemy() {
     return &*it;
 
   return nullptr;
-}
-
-Response Strategy::run_away_from(const Point &pos) const {
-  auto v = -(pos - ctx->my_center);
-  if (v.length() < standing_speed)
-    return move_randomly();
-
-  return Response{}.pos(ctx->my_center + v);
 }
 
 Response Strategy::move_randomly() const {
@@ -84,11 +77,12 @@ void Strategy::update_danger() {
       for (int j = left_top[1]; j <= bottom_right[1]; ++j)
         danger_map[i][j] = 1;
   };
-  int cells_radius = static_cast<int> (ctx->my_radius / cell_size);
+  int cells_radius = static_cast<int>(ctx->my_radius / cell_size);
   for (int i = 0; i < cell_x_cnt; ++i)
-      for (int j = 0; j < cell_y_cnt; ++j)
-          if (i < cells_radius || cell_x_cnt - 1 - i < cells_radius || j < cells_radius || cell_y_cnt - 1 - j < cells_radius)
-              danger_map[i][j] = 1;
+    for (int j = 0; j < cell_y_cnt; ++j)
+      if (i < cells_radius || cell_x_cnt - 1 - i < cells_radius ||
+          j < cells_radius || cell_y_cnt - 1 - j < cells_radius)
+        danger_map[i][j] = 1;
   if (ctx->my_total_mass > constant::virus_danger_mass)
     for (auto &v : ctx->viruses) {
       mark_obj(v.pos, ctx->config.virus_radius + ctx->my_radius);
@@ -147,7 +141,7 @@ Response Strategy::next_step_to_goal() {
         if (!is_valid_cell(next_cell))
           continue;
         if (danger_map[next_cell] > 0.0)
-            continue;
+          continue;
         if (prev[next_cell][0] < 0) {
           prev[next_cell] = cur;
           if (next_cell == goal_cell) {
@@ -190,7 +184,8 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
   constexpr auto food_in_sight_priority = 250.0;
-  auto cur_priority = cell_priority(cell) + ctx->food.size () * food_in_sight_priority;
+  auto cur_priority =
+      cell_priority(cell) + ctx->food.size() * food_in_sight_priority;
   auto best_priority = cur_priority;
   for (int i = cell[0] - search_resolution; i <= cell[0] + search_resolution;
        ++i)
@@ -227,17 +222,16 @@ const Food *Strategy::find_nearest_food() {
           return constant::infinity;
       }
     }
-    for (int i = 0; i < 2;++i)
-        for (int j = 0; j < 2;++j)
-        {
-            Point corner (i * ctx->config.game_width, j * ctx->config.game_height);
-            if (corner.distance_to(food.pos) > ctx->my_radius)
-                continue;
-            corner.x = fabs (corner.x - ctx->my_radius);
-            corner.y = fabs (corner.y - ctx->my_radius);
-            if (corner.distance_to(food.pos) > ctx->my_radius)
-                return constant::infinity;
-        }
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < 2; ++j) {
+        Point corner(i * ctx->config.game_width, j * ctx->config.game_height);
+        if (corner.distance_to(food.pos) > ctx->my_radius)
+          continue;
+        corner.x = fabs(corner.x - ctx->my_radius);
+        corner.y = fabs(corner.y - ctx->my_radius);
+        if (corner.distance_to(food.pos) > ctx->my_radius)
+          return constant::infinity;
+      }
 
     return food.pos.squared_distance_to(ctx->my_center);
   };
@@ -271,12 +265,15 @@ Response Strategy::get_response(const Context &context) {
   update();
 
   if (!ctx->my_parts.empty()) {
+    bool goal_set = false;
     if (auto enemy = find_dangerous_enemy()) {
-      goal = {};
-      return run_away_from(enemy->pos);
+      goal_set = try_run_away_from(enemy->pos);
     }
-    if (auto enemy = find_weak_enemy()) {
-      goal = enemy->pos;
+    if (!goal_set) {
+      if (auto enemy = find_weak_enemy()) {
+        goal = enemy->pos;
+        goal_set = true;
+      }
     }
 
     return move_to_goal_or_repriotize();
@@ -297,4 +294,27 @@ void Strategy::initialize(const GameConfig &config) {
   resize_arr(last_tick_visited);
   resize_arr(blocked_cell);
   last_tick_visited.fill(-100);
+}
+
+bool Strategy::try_run_away_from(const Point &enemy_pos) {
+  auto try_point = [this](const Point &next_point) {
+    if (ctx->config.is_point_inside(next_point) &&
+        danger_map[point_cell(next_point)] < constant::eps) {
+      goal = next_point;
+      return true;
+    }
+    return false;
+  };
+  auto vec = (ctx->my_center - enemy_pos).normalized() * cell_size * 3.0;
+  double angle = 0;
+  double angle_inc = constant::pi / 16;
+  while (angle < constant::pi) {
+    if (try_point(ctx->my_center + vec * Matrix::rotation(angle)))
+      return true;
+    if (try_point(ctx->my_center + vec * Matrix::rotation(-angle)))
+      return true;
+    angle += angle_inc;
+  }
+
+  return false;
 }
