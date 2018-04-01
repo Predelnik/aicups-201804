@@ -14,6 +14,7 @@ using Cell = std::array<int, 2>;
 class Strategy {
 public:
   Strategy();
+    const Player* find_caughtable_enemy();
   Response get_response(const Context &context);
   void initialize(const GameConfig &config);
 

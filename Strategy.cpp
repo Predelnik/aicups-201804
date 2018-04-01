@@ -10,6 +10,22 @@
 
 Strategy::Strategy() : m_re(std::random_device()()) {}
 
+const Player *Strategy::find_caughtable_enemy() {
+  auto get_mass = [this](const Player &pl) {
+    if (!ctx->my_largest_part->can_eat(2.0 * pl.mass))
+      return constant::infinity;
+    return pl.mass;
+  };
+  if (ctx->players.empty())
+    return nullptr;
+
+  auto it = min_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
+  if (get_mass(*it) < constant::infinity)
+    return &*it;
+
+  return nullptr;
+}
+
 const Player *Strategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
     if (p.can_eat(ctx->my_total_mass))
@@ -241,7 +257,8 @@ const Food *Strategy::find_nearest_food() {
   auto dist = [&](const Food &food) {
     if (ctx->my_total_mass > constant::virus_danger_mass) {
       auto danger_dist =
-          ctx->config.virus_radius * constant::interaction_dist_coeff + ctx->my_radius;
+          ctx->config.virus_radius * constant::interaction_dist_coeff +
+          ctx->my_radius;
       for (auto &v : ctx->viruses) {
         if (v.pos.distance_to(food.pos) < danger_dist)
           return constant::infinity;
@@ -293,6 +310,18 @@ Response Strategy::get_response(const Context &context) {
     bool goal_set = false;
     if (auto enemy = find_dangerous_enemy()) {
       goal_set = try_run_away_from(enemy->pos);
+    }
+    if (!goal_set) {
+      if (ctx->my_parts.size() == 1) {
+        if (auto enemy = find_caughtable_enemy()) {
+          if ((ctx->my_parts.front().speed.normalized() -
+               (enemy->pos - ctx->my_center).normalized())
+                  .length() > 1e-2)
+            return Response{}.pos(enemy->pos);
+          else
+            return Response{}.pos(enemy->pos).split(true);
+        }
+      }
     }
     if (!goal_set) {
       if (auto enemy = find_weak_enemy()) {
