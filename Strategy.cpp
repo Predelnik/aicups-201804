@@ -206,7 +206,7 @@ Point Strategy::cell_center(const Cell &cell) const {
 
 double Strategy::cell_priority(const Cell &cell) const {
   constexpr auto tick_coeff = 1.0;
-  constexpr auto center_coeff = 0.001;
+  constexpr auto center_coeff = 0.000;
   constexpr auto enemy_seen_tick_coeff = 10.0;
   if (danger_map[cell] > 0.0)
     return 0.0;
@@ -227,7 +227,7 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto cell = point_cell(ctx->my_center);
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
-  constexpr auto food_in_sight_priority = 250.0;
+  constexpr auto food_in_sight_priority = 150.0;
   auto cur_priority =
       cell_priority(cell) + ctx->food.size() * food_in_sight_priority;
   auto best_priority = cur_priority;
