@@ -113,7 +113,9 @@ void Strategy::update_danger() {
       if (i < cells_radius || cell_x_cnt - 1 - i < cells_radius ||
           j < cells_radius || cell_y_cnt - 1 - j < cells_radius)
         danger_map[i][j] = 1;
-  if (ctx->my_total_mass > constant::virus_danger_mass)
+  if (ctx->my_total_mass > constant::virus_danger_mass &&
+      ctx->tick - last_tick_enemy_seen <
+          ignore_viruses_when_enemy_was_not_seen_for)
     for (auto &v : ctx->viruses) {
       fill_circle(danger_map, 0.5, v.pos,
                   ctx->config.virus_radius + ctx->my_radius);
@@ -124,9 +126,10 @@ void Strategy::update_danger() {
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
 
-void Strategy::update_goal() {
+void Strategy::check_if_goal_is_reached() {
   if (goal) {
-    if (goal->squared_distance_to(ctx->my_center) < 10.0)
+    auto dist = goal->squared_distance_to(ctx->my_center);
+    if ((dist < 1000.0 && dist >= prev_sq_dist_to_goal) || dist < 100.0)
       goal = {};
   }
 }
@@ -143,24 +146,30 @@ void Strategy::update_enemies_seen() {
       fill_circle(dangerous_enemy_seen_tick, ctx->tick, p.pos, p.radius);
 }
 
+void Strategy::update_last_tick_enemy_seen() {
+  if (!ctx->players.empty())
+    last_tick_enemy_seen = ctx->tick;
+}
+
 void Strategy::update() {
-  update_goal();
+  check_if_goal_is_reached();
   check_visible_squares();
   update_danger();
   update_blocked_cells();
   update_enemies_seen();
+  update_last_tick_enemy_seen();
 }
 
-Response Strategy::next_step_to_goal(double max_danger_level) {
+std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
   auto goal_cell = point_cell(*goal);
   if (danger_map[goal_cell] > max_danger_level) {
     goal = {};
-    return stop();
+    return {};
   }
 
   auto cur_cell = point_cell(ctx->my_center);
   if (cur_cell == goal_cell)
-    return Response{}.pos(*goal);
+    return *goal;
   static multi_vector<Cell, 2> prev;
   prev.resize(cell_x_cnt, cell_y_cnt);
   prev.fill({-1, -1});
@@ -185,7 +194,7 @@ Response Strategy::next_step_to_goal(double max_danger_level) {
           if (next_cell == goal_cell) {
             while (prev[next_cell] != cur_cell)
               next_cell = prev[next_cell];
-            return Response{}.pos(cell_center(next_cell));
+            return cell_center(next_cell);
           }
           q.push(next_cell);
         }
@@ -196,7 +205,7 @@ Response Strategy::next_step_to_goal(double max_danger_level) {
 
   blocked_cell[goal_cell] = blocked_cell_recheck_frequency;
   goal = {};
-  return stop();
+  return {};
 }
 
 Point Strategy::cell_center(const Cell &cell) const {
@@ -221,7 +230,18 @@ double Strategy::cell_priority(const Cell &cell) const {
 
 Response Strategy::move_to_goal_or_repriotize() {
   if (goal) {
-    return next_step_to_goal(0.1);
+    Response rsp;
+    auto pos = next_step_to_goal(0.1);
+    if (!pos)
+        rsp = stop ();
+    else
+        rsp.pos (ctx->my_center + (*pos - ctx->my_center) * 5.0);
+    if (goal->distance_to(ctx->my_center) > goal_distance_to_justify_split &&
+        ctx->tick - last_tick_enemy_seen > split_if_enemy_was_not_seen_for &&
+        ctx->my_parts.front().mass >= constant::min_split_mass &&
+        ctx->my_parts.size () < max_parts_consciously / 2)
+      rsp.split();
+    return rsp;
   }
 
   auto cell = point_cell(ctx->my_center);

@@ -13,6 +13,7 @@ StrategyManager::~StrategyManager() = default;
 void StrategyManager::run() {
   std::string data;
   std::cin >> data;
+  std::cin.sync_with_stdio(false);
   m_context.update_config (json::parse (data));
   m_strategy.initialize (m_context.config);
   while (true) {

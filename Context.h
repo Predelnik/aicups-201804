@@ -14,8 +14,8 @@ class Virus;
 
 class Context {
 public:
-  Context ();
-  ~Context ();
+  Context();
+  ~Context();
   void update_config(const json &data);
   void update(const json &data);
 
@@ -23,8 +23,8 @@ private:
   void fill_objects(const json &data);
   void update_my_radius();
   void update_total_mass();
-    void update_largest_part();
-  void update_caches ();
+  void update_largest_part();
+  void update_caches();
   void update_my_center();
 
 public:
