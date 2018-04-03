@@ -31,7 +31,8 @@ private:
   void update();
   Response next_step_to_goal(double max_danger_level);
   Response move_to_goal_or_repriotize();
-  const Food *find_nearest_food();
+    std::optional<Point> best_food_pos() const;
+    const Food *find_nearest_food();
   Point future_center(double time);
   Response continue_movement();
   Response stop();
@@ -39,7 +40,8 @@ private:
   Point cell_center(const Cell &cell) const;
   bool is_valid_cell(const Cell &cell) const;
   double cell_priority(const Cell &cell) const;
-  template <typename T>
+    void set_goal(const Point& goal);
+    template <typename T>
   void fill_circle(multi_vector<T, 2> &target, const T &val, const Point &pos,
                    double radius);
 
