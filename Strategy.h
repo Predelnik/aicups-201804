@@ -5,6 +5,7 @@
 #include <array>
 #include <optional>
 #include <random>
+#include "Const.h"
 
 class Context;
 class Response;
@@ -14,7 +15,7 @@ using Cell = std::array<int, 2>;
 class Strategy {
 public:
   Strategy();
-    const Player* find_caughtable_enemy();
+  const Player *find_caughtable_enemy();
   Response get_response(const Context &context);
   void initialize(const GameConfig &config);
 
@@ -25,14 +26,15 @@ private:
   Response move_randomly() const;
   void check_visible_squares();
   void update_danger();
-  void update_goal();
+  void check_if_goal_is_reached();
   void update_blocked_cells();
   void update_enemies_seen();
+  void update_last_tick_enemy_seen();
   void update();
-  Response next_step_to_goal(double max_danger_level);
+    std::optional<Point> next_step_to_goal(double max_danger_level);
   Response move_to_goal_or_repriotize();
-    std::optional<Point> best_food_pos() const;
-    const Food *find_nearest_food();
+  std::optional<Point> best_food_pos() const;
+  const Food *find_nearest_food();
   Point future_center(double time);
   Response continue_movement();
   Response stop();
@@ -40,8 +42,7 @@ private:
   Point cell_center(const Cell &cell) const;
   bool is_valid_cell(const Cell &cell) const;
   double cell_priority(const Cell &cell) const;
-    void set_goal(const Point& goal);
-    template <typename T>
+  template <typename T>
   void fill_circle(multi_vector<T, 2> &target, const T &val, const Point &pos,
                    double radius);
 
@@ -55,6 +56,8 @@ private:
   int cell_x_cnt = 0;
   int cell_y_cnt = 0;
   std::optional<Point> goal;
+  int last_tick_enemy_seen = -100;
+  double prev_sq_dist_to_goal = constant::infinity;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;
@@ -65,4 +68,9 @@ private:
            // amount in current cell then go there
   static constexpr int better_opportunity_search_resolution = 5;
   static constexpr int new_opportunity_frequency = 30;
+  static constexpr int ignore_viruses_when_enemy_was_not_seen_for = 400;
+  static constexpr int split_if_enemy_was_not_seen_for = 200;
+  static constexpr int max_parts_consciously = 4;
+  static constexpr auto goal_distance_to_justify_split = 200.0;
+
 };
