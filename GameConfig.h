@@ -10,6 +10,7 @@ public:
   GameConfig() = default;
   explicit GameConfig(const json &data);
   bool is_point_inside (const Point &point) const;
+  double distance_to_border (const Point &point) const;
 
 public:
   double food_mass = 0;

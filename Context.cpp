@@ -23,6 +23,7 @@ void Context::update_config(const json &data) { config = GameConfig{data}; }
 void Context::update(const json &data) {
   ++tick;
   my_parts = to_my_parts(data["Mine"]);
+  std::sort (my_parts.begin (), my_parts.end(), [](const auto &lhs, const auto &rhs){ return lhs.mass > rhs.mass; });
   fill_objects(data["Objects"]);
   update_caches();
 }

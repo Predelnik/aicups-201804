@@ -107,7 +107,7 @@ void Strategy::update_danger() {
       for (int j = left_top[1]; j <= bottom_right[1]; ++j)
         danger_map[i][j] = 1;
   };
-  int cells_radius = static_cast<int>(ctx->my_radius / cell_size);
+  int cells_radius = static_cast<int>(2 * ctx->my_radius / cell_size);
   for (int i = 0; i < cell_x_cnt; ++i)
     for (int j = 0; j < cell_y_cnt; ++j)
       if (i < cells_radius || cell_x_cnt - 1 - i < cells_radius ||
@@ -126,8 +126,8 @@ void Strategy::update_danger() {
 
 void Strategy::update_goal() {
   if (goal) {
-    if (goal->distance_to(ctx->my_center) < ctx->my_radius)
-      goal = std::nullopt;
+    if (goal->squared_distance_to(ctx->my_center) < 10.0)
+      goal = {};
   }
 }
 
@@ -192,7 +192,7 @@ Response Strategy::next_step_to_goal(double max_danger_level) {
       }
   }
   if (max_danger_level < 0.1)
-      return next_step_to_goal (0.6);
+    return next_step_to_goal(0.6);
 
   blocked_cell[goal_cell] = blocked_cell_recheck_frequency;
   goal = {};
@@ -227,7 +227,7 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto cell = point_cell(ctx->my_center);
   auto search_resolution = better_opportunity_search_resolution;
   auto best_cell = cell;
-  constexpr auto food_in_sight_priority = 150.0;
+  constexpr auto food_in_sight_priority = 100.0;
   auto cur_priority =
       cell_priority(cell) + ctx->food.size() * food_in_sight_priority;
   auto best_priority = cur_priority;
@@ -237,6 +237,8 @@ Response Strategy::move_to_goal_or_repriotize() {
          ++j) {
       if (!is_valid_cell({i, j}))
         continue;
+      if (danger_map[{i, j}] > 0.0)
+        continue;
       auto priority = cell_priority({i, j});
       if (priority > best_priority) {
         best_cell = {i, j};
@@ -244,14 +246,46 @@ Response Strategy::move_to_goal_or_repriotize() {
       }
     }
 
-  auto nearest_food = find_nearest_food();
+  auto food_pos = best_food_pos();
 
-  if (!nearest_food || best_priority > cur_priority * new_opportunity_coeff)
+  if (!food_pos || best_priority > cur_priority * new_opportunity_coeff)
     return Response{}.pos(*(goal = cell_center(best_cell)));
-  if (nearest_food)
-    return Response{}.pos(*(goal = nearest_food->pos));
+  if (food_pos)
+    return Response{}.pos(*(goal = food_pos));
 
   return continue_movement();
+}
+
+std::optional<Point> Strategy::best_food_pos() const {
+  if (ctx->my_parts.empty())
+    return {};
+  auto my_radius = ctx->my_parts.front().radius;
+  auto scan_radius = ctx->my_parts.front().visibility_radius(
+                         static_cast<int>(ctx->my_parts.size())) -
+                     my_radius;
+  int try_cnt = 100;
+  std::optional<Point> ans;
+  int best_cnt = 0;
+  for (int i = 0; i < try_cnt; ++i) {
+    auto r = std::uniform_real_distribution<double>(my_radius * 2.0,
+                                                    scan_radius)(m_re);
+    auto alpha =
+        std::uniform_real_distribution<double>(0.0, 2.0 * constant::pi)(m_re);
+    auto point = ctx->my_parts.front().pos +
+                 Point{r * std::cos(alpha), r * std::sin(alpha)};
+    if (ctx->config.distance_to_border(point) < my_radius)
+      continue;
+    int cnt = 0;
+    for (auto &f : ctx->food) {
+      if (f.pos.squared_distance_to(point) < pow(my_radius, 2.0))
+        ++cnt;
+    }
+    if (cnt > best_cnt) {
+      best_cnt = cnt;
+      ans = point;
+    }
+  }
+  return ans;
 }
 
 const Food *Strategy::find_nearest_food() {
@@ -359,8 +393,7 @@ bool Strategy::try_run_away_from(const Point &enemy_pos) {
   auto try_point = [this](const Point &next_point) {
     auto cell = point_cell(next_point);
     if (ctx->config.is_point_inside(next_point) &&
-        danger_map[cell] < constant::eps &&
-        blocked_cell[cell] == 0) {
+        danger_map[cell] < constant::eps && blocked_cell[cell] == 0) {
       goal = next_point;
       return true;
     }

@@ -22,3 +22,8 @@ bool GameConfig::is_point_inside(const Point &point) const {
   return point.x >= 0.0 && point.y >= 0.0 && point.x < game_width &&
          point.y < game_height;
 }
+
+double GameConfig::distance_to_border(const Point& point) const
+{
+    return std::min ({fabs (point.x), fabs (point.y), fabs (point.x - game_width), fabs (point.y - game_height)});
+}
