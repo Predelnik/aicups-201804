@@ -26,7 +26,8 @@ private:
   Response move_randomly() const;
   void check_visible_squares();
   void update_danger();
-  void check_if_goal_is_reached();
+    const MyPart* nearest_my_part_to(const Point& point) const;
+    void check_if_goal_is_reached();
   void update_blocked_cells();
   void update_enemies_seen();
   void update_last_tick_enemy_seen();
@@ -57,7 +58,6 @@ private:
   int cell_y_cnt = 0;
   std::optional<Point> goal;
   int last_tick_enemy_seen = -100;
-  double prev_sq_dist_to_goal = constant::infinity;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;

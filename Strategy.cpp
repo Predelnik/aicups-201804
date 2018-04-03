@@ -28,7 +28,7 @@ const Player *Strategy::find_caughtable_enemy() {
 
 const Player *Strategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
-    if (p.can_eat(ctx->my_total_mass))
+    if (p.can_eat(ctx->my_parts.back ().mass * 0.9))
       return &p;
   }
   return nullptr;
@@ -43,7 +43,7 @@ const Player *Strategy::find_weak_enemy() {
   if (ctx->players.empty())
     return nullptr;
 
-  auto it = min_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
+  auto it = max_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
   if (get_mass(*it) < constant::infinity)
     return &*it;
 
@@ -126,10 +126,23 @@ void Strategy::update_danger() {
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
 
+const MyPart *Strategy::nearest_my_part_to(const Point &point) const {
+  if (ctx->my_parts.empty())
+    return nullptr;
+  auto it = min_element_op(
+      ctx->my_parts.begin(), ctx->my_parts.end(),
+      [&](const MyPart &part) { return part.pos.squared_distance_to(point); });
+  return &*it;
+}
+
 void Strategy::check_if_goal_is_reached() {
   if (goal) {
-    auto dist = goal->squared_distance_to(ctx->my_center);
-    if ((dist < 1000.0 && dist >= prev_sq_dist_to_goal) || dist < 100.0)
+    auto p = nearest_my_part_to(*goal);
+    if (!p) {
+      goal = {};
+      return;
+    }
+    if (p->pos.distance_to(*goal) < 10.0)
       goal = {};
   }
 }
@@ -167,7 +180,10 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     return {};
   }
 
-  auto cur_cell = point_cell(ctx->my_center);
+  auto p = nearest_my_part_to(*goal);
+  if (!p)
+    return {};
+  auto cur_cell = point_cell(p->pos);
   if (cur_cell == goal_cell)
     return *goal;
   static multi_vector<Cell, 2> prev;
@@ -233,13 +249,17 @@ Response Strategy::move_to_goal_or_repriotize() {
     Response rsp;
     auto pos = next_step_to_goal(0.1);
     if (!pos)
-        rsp = stop ();
-    else
-        rsp.pos (ctx->my_center + (*pos - ctx->my_center) * 5.0);
+      rsp = stop();
+    else {
+      auto p = nearest_my_part_to(*goal);
+      if (!p)
+        return stop();
+      rsp.pos(p->pos + (*pos - p->pos) * 5.0);
+    }
     if (goal->distance_to(ctx->my_center) > goal_distance_to_justify_split &&
         ctx->tick - last_tick_enemy_seen > split_if_enemy_was_not_seen_for &&
         ctx->my_parts.front().mass >= constant::min_split_mass &&
-        ctx->my_parts.size () < max_parts_consciously / 2)
+        ctx->my_parts.size() < max_parts_consciously / 2)
       rsp.split();
     return rsp;
   }
