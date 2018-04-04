@@ -59,6 +59,7 @@ private:
   std::optional<Point> goal;
   std::vector<std::array<Point, 2>> debug_lines;
   int last_tick_enemy_seen = -100;
+  std::optional<Point> short_term_goal;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;
@@ -73,5 +74,4 @@ private:
   static constexpr int split_if_enemy_was_not_seen_for = 200;
   static constexpr int max_parts_deliberately = 4;
   static constexpr auto goal_distance_to_justify_split = 200.0;
-
 };

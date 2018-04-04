@@ -28,7 +28,7 @@ const Player *Strategy::find_caughtable_enemy() {
 
 const Player *Strategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
-    if (p.can_eat(ctx->my_parts.back ().mass * 0.9))
+    if (p.can_eat(ctx->my_parts.back().mass * 0.9))
       return &p;
   }
   return nullptr;
@@ -136,14 +136,16 @@ const MyPart *Strategy::nearest_my_part_to(const Point &point) const {
 }
 
 void Strategy::check_if_goal_is_reached() {
-  if (goal) {
-    auto p = nearest_my_part_to(*goal);
-    if (!p) {
-      goal = {};
-      return;
+  for (auto ptr : {&goal, &short_term_goal}) {
+    if (*ptr) {
+      auto p = nearest_my_part_to(**ptr);
+      if (!p) {
+        *ptr = {};
+        return;
+      }
+      if (p->pos.distance_to(**ptr) < 10.0)
+        *ptr = {};
     }
-    if (p->pos.distance_to(*goal) < 10.0)
-      goal = {};
   }
 }
 
@@ -174,15 +176,22 @@ void Strategy::update() {
 }
 
 std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
+  if (short_term_goal)
+    return short_term_goal;
   auto goal_cell = point_cell(*goal);
   if (danger_map[goal_cell] > max_danger_level) {
     goal = {};
     return {};
   }
 
+#if CUSTOM_DEBUG
+  debug_lines.clear();
+#endif
+
   auto p = nearest_my_part_to(*goal);
   if (!p)
     return {};
+  debug_lines.push_back({p->pos, *goal});
   auto cur_cell = point_cell(p->pos);
   if (cur_cell == goal_cell)
     return *goal;
@@ -198,6 +207,8 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
       for (int y_dir = -1; y_dir <= 1; ++y_dir) {
         if (x_dir == 0 && y_dir == 0)
           continue;
+        if (x_dir != 0 && y_dir != 0)
+            continue;
         auto next_cell = cur;
         next_cell[0] += x_dir;
         next_cell[1] += y_dir;
@@ -208,17 +219,18 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
         if (prev[next_cell][0] < 0) {
           prev[next_cell] = cur;
           if (next_cell == goal_cell) {
-            while (prev[next_cell] != cur_cell)
-            {
+            while (prev[next_cell] != cur_cell) {
 #if CUSTOM_DEBUG
-                debug_lines.push_back ({cell_center (next_cell), cell_center(prev[next_cell])});
+              debug_lines.push_back(
+                  {cell_center(next_cell), cell_center(prev[next_cell])});
 #endif
               next_cell = prev[next_cell];
             }
 #if CUSTOM_DEBUG
-                debug_lines.push_back ({cell_center (next_cell), cell_center(cur_cell)});
+            debug_lines.push_back(
+                {cell_center(next_cell), cell_center(cur_cell)});
 #endif
-            return cell_center(next_cell);
+            return *(short_term_goal = cell_center(next_cell));
           }
           q.push(next_cell);
         }
@@ -388,9 +400,6 @@ Response Strategy::stop() {
 }
 
 Response Strategy::get_response(const Context &context) {
-#if CUSTOM_DEBUG
-  debug_lines.clear ();
-#endif
   ctx = &context;
   update();
 
@@ -420,7 +429,7 @@ Response Strategy::get_response(const Context &context) {
 
     auto rsp = move_to_goal_or_repriotize();
 #ifdef CUSTOM_DEBUG
-    rsp.debug_lines (debug_lines);
+    rsp.debug_lines(debug_lines);
 #endif
     return rsp;
   }
