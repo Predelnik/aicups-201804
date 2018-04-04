@@ -57,6 +57,7 @@ private:
   int cell_x_cnt = 0;
   int cell_y_cnt = 0;
   std::optional<Point> goal;
+  std::vector<std::array<Point, 2>> debug_lines;
   int last_tick_enemy_seen = -100;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
@@ -70,7 +71,7 @@ private:
   static constexpr int new_opportunity_frequency = 30;
   static constexpr int ignore_viruses_when_enemy_was_not_seen_for = 400;
   static constexpr int split_if_enemy_was_not_seen_for = 200;
-  static constexpr int max_parts_consciously = 4;
+  static constexpr int max_parts_deliberately = 4;
   static constexpr auto goal_distance_to_justify_split = 200.0;
 
 };
