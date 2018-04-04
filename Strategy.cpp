@@ -209,7 +209,15 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
           prev[next_cell] = cur;
           if (next_cell == goal_cell) {
             while (prev[next_cell] != cur_cell)
+            {
+#if CUSTOM_DEBUG
+                debug_lines.push_back ({cell_center (next_cell), cell_center(prev[next_cell])});
+#endif
               next_cell = prev[next_cell];
+            }
+#if CUSTOM_DEBUG
+                debug_lines.push_back ({cell_center (next_cell), cell_center(cur_cell)});
+#endif
             return cell_center(next_cell);
           }
           q.push(next_cell);
@@ -251,7 +259,7 @@ Response Strategy::move_to_goal_or_repriotize() {
     if (!pos)
       rsp = stop();
     else {
-      auto p = nearest_my_part_to(*goal);
+      auto p = nearest_my_part_to(*pos);
       if (!p)
         return stop();
       rsp.pos(p->pos + (*pos - p->pos) * 5.0);
@@ -259,7 +267,7 @@ Response Strategy::move_to_goal_or_repriotize() {
     if (goal->distance_to(ctx->my_center) > goal_distance_to_justify_split &&
         ctx->tick - last_tick_enemy_seen > split_if_enemy_was_not_seen_for &&
         ctx->my_parts.front().mass >= constant::min_split_mass &&
-        ctx->my_parts.size() < max_parts_consciously / 2)
+        ctx->my_parts.size() <= max_parts_deliberately / 2)
       rsp.split();
     return rsp;
   }
@@ -380,6 +388,9 @@ Response Strategy::stop() {
 }
 
 Response Strategy::get_response(const Context &context) {
+#if CUSTOM_DEBUG
+  debug_lines.clear ();
+#endif
   ctx = &context;
   update();
 
@@ -407,7 +418,11 @@ Response Strategy::get_response(const Context &context) {
       }
     }
 
-    return move_to_goal_or_repriotize();
+    auto rsp = move_to_goal_or_repriotize();
+#ifdef CUSTOM_DEBUG
+    rsp.debug_lines (debug_lines);
+#endif
+    return rsp;
   }
   return Response{}.pos({}).debug("Died");
 }
