@@ -1,13 +1,23 @@
 #pragma once
 #include "../nlohmann/json.hpp"
-#include "Point.h"
 #include "Object.h"
+#include "Point.h"
 
 using nlohmann::json;
+
+class MovingPoint
+{
+public:
+    Point position;
+    Point speed;
+};
 
 class MyPart : public Player {
 public:
   explicit MyPart(const json &data);
+  MovingPoint next_moving_point(MovingPoint speed_position,
+                                   const Point &acceleration, int ticks,
+                                   const GameConfig &config) const;
   explicit MyPart() = default;
   double visibility_radius(int fragment_cnt) const;
 

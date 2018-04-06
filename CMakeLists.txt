@@ -9,7 +9,10 @@ target_include_directories (MyStrategy PRIVATE deps/dummy)
 if (CUSTOM_DEBUG)
 target_compile_definitions (MyStrategy PRIVATE CUSTOM_DEBUG=1)
 endif ()
+set_property(TARGET MyStrategy PROPERTY CXX_STANDARD 17)
+if (MSVC)
 target_compile_definitions (MyStrategy PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-target_compile_options (MyStrategy PRIVATE /std:c++latest /permissive-)
+target_compile_options (MyStrategy PRIVATE /permissive-)
+endif()
 
 

@@ -5,6 +5,7 @@
 
 #include <variant>
 
+class GameConfig;
 using nlohmann::json;
 
 class ObjectBase {
@@ -34,6 +35,7 @@ class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
   bool can_eat (double opponent_mass) const;
+  double max_speed (const GameConfig &config) const;
 
 protected:
   Player () = default;

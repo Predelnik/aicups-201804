@@ -136,7 +136,7 @@ const MyPart *Strategy::nearest_my_part_to(const Point &point) const {
 }
 
 void Strategy::check_if_goal_is_reached() {
-  for (auto ptr : {&goal, &short_term_goal}) {
+  for (auto ptr : {&goal}) {
     if (*ptr) {
       auto p = nearest_my_part_to(**ptr);
       if (!p) {
@@ -166,7 +166,13 @@ void Strategy::update_last_tick_enemy_seen() {
     last_tick_enemy_seen = ctx->tick;
 }
 
+void Strategy::check_subgoal() {
+  if (ctx->tick == subgoal_reset_tick)
+    subgoal = {};
+}
+
 void Strategy::update() {
+  check_subgoal();
   check_if_goal_is_reached();
   check_visible_squares();
   update_danger();
@@ -175,10 +181,47 @@ void Strategy::update() {
   update_last_tick_enemy_seen();
 }
 
+namespace {
+class PathFindingPoint {
+public:
+  Cell cell;
+  CellSpeed speed; // discretizied by max speed
+};
+} // namespace
+
+CellSpeed Strategy::to_cell_speed(const MyPart &p, const Point &val) const {
+  if (val.length() < p.max_speed(ctx->config) * 0.5)
+    return {0, 0};
+  constexpr auto unit = constant::pi / 4;
+  double angle = std::atan2(val.y, val.x) + unit / 2.;
+  if (angle < 0.0)
+    angle += 2 * constant::pi;
+  auto index = static_cast<int>(angle / unit);
+  constexpr CellSpeed tbl[] = {{1, 0},  {1, 1},   {0, 1},  {-1, 1},
+                               {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+  return tbl[index];
+}
+
+Point Strategy::from_cell_speed(const MyPart &p, const CellSpeed &sp) const {
+  double speed_length = p.max_speed(ctx->config);
+  if (sp[0] != 0 && sp[1] != 0)
+    speed_length *= constant::sqrt2;
+  return {speed_length * sp[0], speed_length * sp[1]};
+}
+
+struct move_result {
+  int ticks = -1;
+  Cell shift;
+  CellSpeed speed;
+};
+
 std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
-  if (short_term_goal)
-    return short_term_goal;
+  static multi_vector<move_result, 4> move_cache(3, 3, 3, 3);
+  move_cache.fill({});
   auto goal_cell = point_cell(*goal);
+  if (subgoal)
+    return *subgoal;
+
   if (danger_map[goal_cell] > max_danger_level) {
     goal = {};
     return {};
@@ -191,51 +234,107 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
   auto p = nearest_my_part_to(*goal);
   if (!p)
     return {};
-  debug_lines.push_back({p->pos, *goal});
-  auto cur_cell = point_cell(p->pos);
-  if (cur_cell == goal_cell)
+  auto initial_cell = point_cell(p->pos);
+  if (initial_cell == goal_cell)
     return *goal;
-  static multi_vector<Cell, 2> prev;
-  prev.resize(cell_x_cnt, cell_y_cnt);
-  prev.fill({-1, -1});
-  std::queue<Cell> q;
-  q.push(cur_cell);
+  static multi_vector<std::pair<PathFindingPoint, CellAccel>, 4> way;
+  way.resize(cell_x_cnt, cell_y_cnt, 3, 3);
+  way.fill({{-1, -1}, {0, 0}});
+  static multi_vector<int, 4> time;
+  time.resize(cell_x_cnt, cell_y_cnt, 3, 3);
+  time.fill(constant::int_infinity);
+  static std::deque<PathFindingPoint> q;
+  q.clear ();
+  auto get_time = [&](const PathFindingPoint &pfp) -> auto & {
+    return time[pfp.cell[0]][pfp.cell[1]][pfp.speed[0] + 1][pfp.speed[1] + 1];
+  };
+  auto get_way = [&](const PathFindingPoint &pfp) -> auto & {
+    return way[pfp.cell[0]][pfp.cell[1]][pfp.speed[0] + 1][pfp.speed[1] + 1];
+  };
+  PathFindingPoint initial_pfp{initial_cell, to_cell_speed(*p, p->speed)};
+  get_time(initial_pfp) = 0;
+  q.push_back(initial_pfp);
   while (!q.empty()) {
     auto cur = q.front();
-    q.pop();
+    q.pop_front();
     for (int x_dir = -1; x_dir <= 1; ++x_dir)
       for (int y_dir = -1; y_dir <= 1; ++y_dir) {
         if (x_dir == 0 && y_dir == 0)
           continue;
-        if (x_dir != 0 && y_dir != 0)
-            continue;
-        auto next_cell = cur;
-        next_cell[0] += x_dir;
-        next_cell[1] += y_dir;
-        if (!is_valid_cell(next_cell))
-          continue;
-        if (danger_map[next_cell] > max_danger_level)
-          continue;
-        if (prev[next_cell][0] < 0) {
-          prev[next_cell] = cur;
-          if (next_cell == goal_cell) {
-            while (prev[next_cell] != cur_cell) {
-#if CUSTOM_DEBUG
-              debug_lines.push_back(
-                  {cell_center(next_cell), cell_center(prev[next_cell])});
-#endif
-              next_cell = prev[next_cell];
+
+        PathFindingPoint next_point;
+        int time_taken = 0;
+        {
+          auto &res =
+              move_cache[cur.speed[0] + 1][cur.speed[1] + 1][x_dir + 1][y_dir + 1];
+          if (res.ticks < 0) {
+            MovingPoint cur_moving_pnt = {cell_center(cur.cell),
+                                          from_cell_speed(*p, cur.speed)};
+            int t = 0;
+            while (point_cell(cur_moving_pnt.position) == cur.cell) {
+              constexpr int tick_resolution = 1;
+              cur_moving_pnt = p->next_moving_point(
+                  cur_moving_pnt, from_cell_speed(*p, {x_dir, y_dir}),
+                  tick_resolution, ctx->config);
+              t += tick_resolution;
             }
-#if CUSTOM_DEBUG
-            debug_lines.push_back(
-                {cell_center(next_cell), cell_center(cur_cell)});
-#endif
-            return *(short_term_goal = cell_center(next_cell));
+            next_point = {point_cell(cur_moving_pnt.position),
+                          to_cell_speed(*p, cur_moving_pnt.speed)};
+            res.ticks = t;
+            res.shift = {next_point.cell[0] - cur.cell[0],
+                         next_point.cell[1] - cur.cell[1]};
+            res.speed = next_point.speed;
           }
-          q.push(next_cell);
+          time_taken = res.ticks;
+          next_point.speed = res.speed;
+          next_point.cell = {cur.cell[0] + res.shift[0], cur.cell[1] + res.shift[1]};
+        }
+        if (!is_valid_cell(next_point.cell))
+          continue;
+        if (danger_map[next_point.cell] > max_danger_level)
+          continue;
+        if (get_time(cur) + time_taken < get_time(next_point)) {
+          get_way(next_point) = {cur, {x_dir, y_dir}};
+          get_time(next_point) = get_time(cur) + time_taken;
+          if (cur.cell == goal_cell)
+            break;
+          q.push_back(next_point);
         }
       }
   }
+  int best_time = constant::int_infinity;
+  std::optional<CellSpeed> best_speed;
+  for (int dx = -1; dx <= 1; ++dx)
+    for (int dy = -1; dy <= 1; ++dy) {
+      auto t = time[goal_cell[0]][goal_cell[1]][dx + 1][dy + 1];
+      if (t < best_time) {
+        best_time = t;
+        best_speed = {dx, dy};
+      }
+    }
+  if (best_speed) {
+    auto speed = *best_speed;
+    PathFindingPoint pfp = {goal_cell, speed};
+    while (true) {
+      auto &w = get_way(pfp);
+#if CUSTOM_DEBUG
+      debug_lines.push_back({cell_center(pfp.cell), cell_center(w.first.cell)});
+#endif
+      if (w.first.cell == initial_cell)
+        break;
+      pfp = w.first;
+    }
+#if CUSTOM_DEBUG
+    debug_lines.push_back({p->pos, cell_center(get_way(pfp).first.cell)});
+#endif
+    auto cell_acc = get_way(pfp).second;
+    subgoal_reset_tick = ctx->tick + get_time(pfp);
+    if (pfp.cell == goal_cell)
+      return goal;
+    return *(subgoal =
+                 p->pos + Point(cell_acc[0], cell_acc[1]) * 100.0);
+  }
+
   if (max_danger_level < 0.1)
     return next_step_to_goal(0.6);
 
@@ -244,7 +343,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
   return {};
 }
 
-Point Strategy::cell_center(const Cell &cell) const {
+Point Strategy::cell_center(const Cell &cell) {
   return {cell[0] * cell_size + cell_size * 0.5,
           cell[1] * cell_size + cell_size * 0.5};
 }
