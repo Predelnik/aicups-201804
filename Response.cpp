@@ -9,7 +9,7 @@ json Response::to_json() const {
   json out;
   out["X"] = m_pos.x;
   out["Y"] = m_pos.y;
-  out["DEBUG"] = "Version 13:\n" + m_debug;
+  out["DEBUG"] = "Version 14:\n" + m_debug;
   if (m_split)
     out["Split"] = true;
   if (m_eject)
