@@ -65,6 +65,7 @@ private:
   std::vector<std::array<Point, 2>> debug_lines;
   int last_tick_enemy_seen = -100;
   int subgoal_reset_tick = 0;
+  std::vector<Cell> cell_order;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;

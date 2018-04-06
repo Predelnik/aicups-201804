@@ -244,7 +244,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
   time.resize(cell_x_cnt, cell_y_cnt, 3, 3);
   time.fill(constant::int_infinity);
   static std::deque<PathFindingPoint> q;
-  q.clear ();
+  q.clear();
   auto get_time = [&](const PathFindingPoint &pfp) -> auto & {
     return time[pfp.cell[0]][pfp.cell[1]][pfp.speed[0] + 1][pfp.speed[1] + 1];
   };
@@ -265,8 +265,8 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
         PathFindingPoint next_point;
         int time_taken = 0;
         {
-          auto &res =
-              move_cache[cur.speed[0] + 1][cur.speed[1] + 1][x_dir + 1][y_dir + 1];
+          auto &res = move_cache[cur.speed[0] + 1][cur.speed[1] + 1][x_dir + 1]
+                                [y_dir + 1];
           if (res.ticks < 0) {
             MovingPoint cur_moving_pnt = {cell_center(cur.cell),
                                           from_cell_speed(*p, cur.speed)};
@@ -287,7 +287,8 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
           }
           time_taken = res.ticks;
           next_point.speed = res.speed;
-          next_point.cell = {cur.cell[0] + res.shift[0], cur.cell[1] + res.shift[1]};
+          next_point.cell = {cur.cell[0] + res.shift[0],
+                             cur.cell[1] + res.shift[1]};
         }
         if (!is_valid_cell(next_point.cell))
           continue;
@@ -331,8 +332,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     subgoal_reset_tick = ctx->tick + get_time(pfp);
     if (pfp.cell == goal_cell)
       return goal;
-    return *(subgoal =
-                 p->pos + Point(cell_acc[0], cell_acc[1]) * 100.0);
+    return *(subgoal = p->pos + Point(cell_acc[0], cell_acc[1]) * 100.0);
   }
 
   if (max_danger_level < 0.1)
@@ -360,7 +360,7 @@ double Strategy::cell_priority(const Cell &cell) const {
                              Point(cell[0], cell[1])));
   double enemy_seen_tick_diff = (ctx->tick - dangerous_enemy_seen_tick[cell]);
   return tick_coeff * tick_diff + center_coeff * center_shift +
-         enemy_seen_tick_coeff * enemy_seen_tick_diff;
+         enemy_seen_tick_coeff * enemy_seen_tick_diff - cell_center (cell).distance_to(ctx->my_center);
 }
 
 Response Strategy::move_to_goal_or_repriotize() {
@@ -390,20 +390,15 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto cur_priority =
       cell_priority(cell) + ctx->food.size() * food_in_sight_priority;
   auto best_priority = cur_priority;
-  for (int i = cell[0] - search_resolution; i <= cell[0] + search_resolution;
-       ++i)
-    for (int j = cell[1] - search_resolution; j <= cell[1] + search_resolution;
-         ++j) {
-      if (!is_valid_cell({i, j}))
-        continue;
-      if (danger_map[{i, j}] > 0.0)
-        continue;
-      auto priority = cell_priority({i, j});
-      if (priority > best_priority) {
-        best_cell = {i, j};
-        best_priority = priority;
-      }
+  for (auto &c : cell_order) {
+    if (danger_map[c] > 0.0)
+      continue;
+    auto priority = cell_priority(c);
+    if (priority > best_priority) {
+      best_cell = c;
+      best_priority = priority;
     }
+  }
 
   auto food_pos = best_food_pos();
 
@@ -550,6 +545,11 @@ void Strategy::initialize(const GameConfig &config) {
   resize_arr(dangerous_enemy_seen_tick);
   last_tick_visited.fill(-100);
   dangerous_enemy_seen_tick.fill(-100);
+  for (int i = 0; i < cell_x_cnt; ++i)
+    for (int j = 0; j < cell_y_cnt; ++j)
+      cell_order.push_back({i, j});
+
+  std::shuffle(cell_order.begin(), cell_order.end(), m_re);
 }
 
 bool Strategy::try_run_away_from(const Point &enemy_pos) {
