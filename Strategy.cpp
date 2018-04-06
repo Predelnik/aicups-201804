@@ -223,7 +223,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     return *subgoal;
 
   if (danger_map[goal_cell] > max_danger_level) {
-    goal = {};
+    reset_goal ({});
     return {};
   }
 
@@ -339,7 +339,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     return next_step_to_goal(0.6);
 
   blocked_cell[goal_cell] = blocked_cell_recheck_frequency;
-  goal = {};
+  reset_goal ({});
   return {};
 }
 
@@ -407,9 +407,9 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto food_pos = best_food_pos();
 
   if (!food_pos || best_priority > cur_priority * new_opportunity_coeff)
-    return Response{}.pos(*(goal = cell_center(best_cell)));
+    return Response{}.pos(*(reset_goal (cell_center(best_cell))));
   if (food_pos)
-    return Response{}.pos(*(goal = food_pos));
+    return Response{}.pos(*(reset_goal (food_pos)));
 
   return continue_movement();
 }
@@ -497,6 +497,13 @@ Response Strategy::stop() {
   return Response{}.pos(ctx->my_center);
 }
 
+std::optional<Point> Strategy::reset_goal(std::optional<Point> point)
+{
+    goal = point;
+    subgoal = {};
+    return goal;
+}
+
 Response Strategy::get_response(const Context &context) {
   ctx = &context;
   update();
@@ -520,7 +527,7 @@ Response Strategy::get_response(const Context &context) {
     }
     if (!goal_set) {
       if (auto enemy = find_weak_enemy()) {
-        goal = enemy->pos;
+        reset_goal (enemy->pos);
         goal_set = true;
       }
     }
@@ -561,7 +568,7 @@ bool Strategy::try_run_away_from(const Point &enemy_pos) {
     auto cell = point_cell(next_point);
     if (ctx->config.is_point_inside(next_point) &&
         danger_map[cell] < constant::eps && blocked_cell[cell] == 0) {
-      goal = next_point;
+      reset_goal (next_point);
       return true;
     }
     return false;

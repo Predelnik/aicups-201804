@@ -44,7 +44,8 @@ private:
   Point future_center(double time);
   Response continue_movement();
   Response stop();
-  Cell point_cell(const Point &point) const;
+    std::optional<Point> reset_goal(std::optional<Point> point);
+    Cell point_cell(const Point &point) const;
     static Point cell_center(const Cell &cell);
   bool is_valid_cell(const Cell &cell) const;
   double cell_priority(const Cell &cell) const;
