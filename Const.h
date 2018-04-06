@@ -1,9 +1,12 @@
 #pragma once
+#include <limits>
 
 namespace constant
 {
   constexpr double pi = 3.14159265358979323846;
+  constexpr double sqrt2 = 1.414213562373095048801688724209698078569671875;
   constexpr double infinity = 1e200;
+  constexpr int int_infinity = std::numeric_limits<int>::max () / 2;
   constexpr double eps = 1e-10;
   constexpr double virus_danger_mass = 120.0;
   constexpr double eating_mass_coeff = 1.2; // mass should be eating_mass_coeff much larger to perform eating

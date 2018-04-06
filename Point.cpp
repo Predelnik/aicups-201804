@@ -30,6 +30,11 @@ double Point::squared_distance_to(const Point &other) const {
   return x_d * x_d + y_d * y_d;
 }
 
+double Point::squared_length()
+{
+    return pow (x, 2) + pow (y, 2);
+}
+
 std::array<Point, 2> rect_around(const Point &pnt, double side) {
   return {Point{pnt.x - side / 2., pnt.y - side / 2.},
           Point{pnt.x + side / 2., pnt.y + side / 2.}};

@@ -7,10 +7,20 @@
 
 #include "overload.h"
 
+#ifdef _MSC_VER
+#include <windows.h>
+#endif
+
 StrategyManager::StrategyManager() = default;
 StrategyManager::~StrategyManager() = default;
 
 void StrategyManager::run() {
+#if defined _MSC_VER  && defined _DEBUG
+  while (!IsDebuggerPresent ())
+  {
+      Sleep (500);
+  }
+#endif
   std::string data;
   std::cin >> data;
   std::cin.sync_with_stdio(false);

@@ -1,16 +1,18 @@
 ﻿#pragma once
 
+#include "Const.h"
 #include "Context.h"
 #include "multi_vector.h"
 #include <array>
 #include <optional>
 #include <random>
-#include "Const.h"
 
 class Context;
 class Response;
 
 using Cell = std::array<int, 2>;
+using CellSpeed = std::array<int, 2>;
+using CellAccel = std::array<int, 2>;
 
 class Strategy {
 public:
@@ -24,15 +26,18 @@ private:
   const Player *find_dangerous_enemy();
   const Player *find_weak_enemy();
   Response move_randomly() const;
+  CellSpeed to_cell_speed(const MyPart &p, const Point &val) const;
   void check_visible_squares();
+  Point from_cell_speed (const  MyPart &p, const CellSpeed &sp) const;
   void update_danger();
-    const MyPart* nearest_my_part_to(const Point& point) const;
-    void check_if_goal_is_reached();
+  const MyPart *nearest_my_part_to(const Point &point) const;
+  void check_if_goal_is_reached();
   void update_blocked_cells();
   void update_enemies_seen();
   void update_last_tick_enemy_seen();
+  void check_subgoal();
   void update();
-    std::optional<Point> next_step_to_goal(double max_danger_level);
+  std::optional<Point> next_step_to_goal(double max_danger_level);
   Response move_to_goal_or_repriotize();
   std::optional<Point> best_food_pos() const;
   const Food *find_nearest_food();
@@ -40,7 +45,7 @@ private:
   Response continue_movement();
   Response stop();
   Cell point_cell(const Point &point) const;
-  Point cell_center(const Cell &cell) const;
+    static Point cell_center(const Cell &cell);
   bool is_valid_cell(const Cell &cell) const;
   double cell_priority(const Cell &cell) const;
   template <typename T>
@@ -56,15 +61,15 @@ private:
   multi_vector<double, 2> danger_map;
   int cell_x_cnt = 0;
   int cell_y_cnt = 0;
-  std::optional<Point> goal;
+  std::optional<Point> goal, subgoal;
   std::vector<std::array<Point, 2>> debug_lines;
   int last_tick_enemy_seen = -100;
-  std::optional<Point> short_term_goal;
+  int subgoal_reset_tick = 0;
 
   static constexpr int blocked_cell_recheck_frequency = 200;
   static constexpr int randomize_frequency = 50;
   static constexpr double standing_speed = 1.0;
-  static constexpr double cell_size = 15.0;
+  static constexpr double cell_size = 15;
   static constexpr double new_opportunity_coeff =
       2.0; // if expected food amount around near is more than this coeff *
            // amount in current cell then go there
