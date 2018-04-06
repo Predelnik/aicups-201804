@@ -65,11 +65,21 @@ void Context::update_largest_part() {
   my_largest_part = &*max_element_op(my_parts.begin(), my_parts.end(), [](const MyPart &part){ return part.mass;});
 }
 
+void Context::update_speed_data()
+{
+  std::vector<std::pair<Point, double>> speed;
+  for (auto &p : my_parts)
+    speed.emplace_back(p.speed, p.mass);
+  avg_speed = weighted_center(speed);
+  speed_angle = avg_speed.angle ();
+}
+
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
   update_total_mass();
   update_largest_part();
+  update_speed_data ();
 }
 
 void Context::update_my_center() {

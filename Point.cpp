@@ -35,6 +35,11 @@ double Point::squared_length()
     return pow (x, 2) + pow (y, 2);
 }
 
+double Point::angle()
+{
+    return std::atan2 (y, x);
+}
+
 std::array<Point, 2> rect_around(const Point &pnt, double side) {
   return {Point{pnt.x - side / 2., pnt.y - side / 2.},
           Point{pnt.x + side / 2., pnt.y + side / 2.}};

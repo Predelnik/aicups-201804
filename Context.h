@@ -24,6 +24,7 @@ private:
   void update_my_radius();
   void update_total_mass();
   void update_largest_part();
+  void update_speed_data();
   void update_caches();
   void update_my_center();
 
@@ -38,6 +39,8 @@ public:
   Point my_center;
   double my_radius;
   double my_total_mass;
+  double speed_angle;
   int tick = 0;
+  Point avg_speed;
   MyPart *my_largest_part = nullptr;
 };
