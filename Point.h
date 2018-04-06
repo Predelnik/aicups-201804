@@ -66,6 +66,7 @@ public:
 
   double squared_distance_to(const Point &other) const;
     double squared_length();
+    double angle();
 };
 
 std::array<Point, 2> rect_around(const Point &pnt, double side);

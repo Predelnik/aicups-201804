@@ -358,9 +358,13 @@ double Strategy::cell_priority(const Cell &cell) const {
   double center_shift = (sqrt(2.) * ctx->config.game_width -
                          Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
                              Point(cell[0], cell[1])));
+  auto angle1 = (cell_center (cell) - ctx->my_center).angle ();
+  auto angle2 = ctx->speed_angle;
+  auto angle_badness = abs (angle1 - angle2) * 100.0;
+
   double enemy_seen_tick_diff = (ctx->tick - dangerous_enemy_seen_tick[cell]);
   return tick_coeff * tick_diff + center_coeff * center_shift +
-         enemy_seen_tick_coeff * enemy_seen_tick_diff - cell_center (cell).distance_to(ctx->my_center);
+         enemy_seen_tick_coeff * enemy_seen_tick_diff - cell_center (cell).distance_to(ctx->my_center) - angle_badness;
 }
 
 Response Strategy::move_to_goal_or_repriotize() {
