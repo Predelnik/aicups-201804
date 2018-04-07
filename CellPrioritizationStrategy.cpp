@@ -15,7 +15,7 @@ CellPrioritizationStrategy::CellPrioritizationStrategy()
 
 const Player *CellPrioritizationStrategy::find_caughtable_enemy() {
   auto get_mass = [this](const Player &pl) {
-    if (!ctx->my_largest_part->can_eat(2.0 * pl.mass))
+    if (!can_eat(ctx->my_largest_part->mass, 2.0 * pl.mass))
       return constant::infinity;
     return pl.mass;
   };
@@ -31,7 +31,7 @@ const Player *CellPrioritizationStrategy::find_caughtable_enemy() {
 
 const Player *CellPrioritizationStrategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
-    if (p.can_eat(ctx->my_parts.back().mass * 0.9))
+    if (can_eat(p.mass, ctx->my_parts.back().mass * 0.9))
       return &p;
   }
   return nullptr;
@@ -39,7 +39,7 @@ const Player *CellPrioritizationStrategy::find_dangerous_enemy() {
 
 const Player *CellPrioritizationStrategy::find_weak_enemy() {
   auto get_mass = [this](const Player &pl) {
-    if (!ctx->my_largest_part || !ctx->my_largest_part->can_eat(pl.mass))
+    if (!ctx->my_largest_part || !can_eat(ctx->my_largest_part->mass, pl.mass))
       return constant::infinity;
     return pl.mass;
   };
@@ -125,7 +125,7 @@ void CellPrioritizationStrategy::update_danger() {
                   ctx->config.virus_radius + ctx->my_radius);
     }
   for (auto &p : ctx->players)
-    if (p.can_eat(ctx->my_total_mass))
+    if (can_eat(p.mass, ctx->my_total_mass))
       fill_circle(danger_map, 1.0, p.pos,
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
@@ -162,7 +162,7 @@ void CellPrioritizationStrategy::update_blocked_cells() {
 
 void CellPrioritizationStrategy::update_enemies_seen() {
   for (auto &p : ctx->players)
-    if (p.can_eat(ctx->my_total_mass))
+    if (can_eat(p.mass, ctx->my_total_mass))
       fill_circle(dangerous_enemy_seen_tick, ctx->tick, p.pos, p.radius);
 }
 
@@ -279,14 +279,14 @@ CellPrioritizationStrategy::next_step_to_goal(double max_danger_level) {
             MovingPoint cur_moving_pnt = {cell_center(cur.cell),
                                           from_cell_speed(*p, cur.speed)};
             int t = 0;
-            while (point_cell(cur_moving_pnt.position) == cur.cell) {
+            while (point_cell(cur_moving_pnt.pos) == cur.cell) {
               constexpr int tick_resolution = 1;
               cur_moving_pnt = next_moving_point(
                   cur_moving_pnt, p->mass, from_cell_speed(*p, {x_dir, y_dir}),
                   tick_resolution, ctx->config);
               t += tick_resolution;
             }
-            next_point = {point_cell(cur_moving_pnt.position),
+            next_point = {point_cell(cur_moving_pnt.pos),
                           to_cell_speed(*p, cur_moving_pnt.speed)};
             res.ticks = t;
             res.shift = {next_point.cell[0] - cur.cell[0],

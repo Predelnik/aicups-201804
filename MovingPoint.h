@@ -4,6 +4,6 @@
 class MovingPoint
 {
 public:
-    Point position;
+    Point pos;
     Point speed;
 };

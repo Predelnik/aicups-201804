@@ -31,28 +31,48 @@ Response MaxSpeedStrategy::speed_case() {
       auto x_to_wall =
           x_distance_to_wall(next_mps[j], ctx->my_parts[j].radius, ctx->config);
       if (x_to_wall < r)
-        score -= static_cast<int>(10000.0 * ((r - x_to_wall) / r));
+        score -= static_cast<int>(100000.0 * ((r - x_to_wall) / r));
       auto y_to_wall =
           y_distance_to_wall(next_mps[j], ctx->my_parts[j].radius, ctx->config);
       if (y_to_wall < r)
-        score -= static_cast<int>(10000.0 * ((r - y_to_wall) / r));
+        score -= static_cast<int>(100000.0 * ((r - y_to_wall) / r));
     }
     for (int iteration = 0; iteration < 10; ++iteration) {
       std::set<int> food_taken;
-
       for (int food_index = 0; food_index < ctx->food.size(); ++food_index) {
         if (food_taken.count(food_index))
           continue;
         for (int part_index = 0; part_index < ctx->my_parts.size();
              ++part_index) {
-          if (next_mps[part_index].position.squared_distance_to(
-                  ctx->food[food_index].pos) < ctx->my_parts[part_index].radius)
-              {
-                score += 100 * ctx->config.food_mass;
-                food_taken.insert(food_index);
-              }
+          if (next_mps[part_index].pos.squared_distance_to(
+                  ctx->food[food_index].pos) <
+              ctx->my_parts[part_index].radius) {
+            score += static_cast<int>(100 * ctx->config.food_mass);
+            food_taken.insert(food_index);
+          }
         }
       }
+
+      std::set<int> players_taken;
+      for (int player_index = 0; player_index < ctx->players.size();
+           ++player_index) {
+        if (players_taken.count(player_index))
+          continue;
+        for (int part_index = 0; part_index < ctx->my_parts.size();
+             ++part_index) {
+          auto &enemy = ctx->players[player_index];
+          auto &p = ctx->my_parts[part_index];
+          if (can_eat(p.mass, next_mps[part_index].pos, p.radius, enemy.mass,
+                      enemy.pos, enemy.radius)) {
+            score += static_cast<int>(50 * enemy.mass);
+            players_taken.insert(player_index);
+          } else if (can_eat(enemy.mass, p.mass)) {
+            score += static_cast<int>(1000 * enemy.pos.distance_to(next_mps[part_index].pos));
+            players_taken.insert(player_index);
+          }
+        }
+      }
+
       for (int part_index = 0; part_index < ctx->my_parts.size();
            ++part_index) {
         next_mps[part_index] = next_moving_point(next_mps[part_index],
@@ -67,9 +87,12 @@ Response MaxSpeedStrategy::speed_case() {
       best_angle = angle;
     }
   }
-  return Response{}.target(
+  auto r = Response{}.target(
       ctx->my_center +
       (ctx->avg_speed * Matrix::rotation(best_angle)).normalized() * 50.0);
+  if (ctx->my_parts.size () < ctx->config.max_fragments_cnt && ctx->players.empty ())
+      r.split();
+  return r;
 }
 
 Response MaxSpeedStrategy::no_speed_case() {
