@@ -35,7 +35,7 @@ double Point::squared_length() const
     return pow (x, 2) + pow (y, 2);
 }
 
-double Point::angle()
+double Point::angle() const
 {
     return std::atan2 (y, x);
 }
