@@ -1,6 +1,7 @@
 #include "Object.h"
 #include "Const.h"
 #include "GameConfig.h"
+#include "GameHelpers.h"
 
 ObjectBase::ObjectBase(const json &data) {
   pos.x = data["X"];
@@ -14,7 +15,7 @@ bool Player::can_eat(double opponent_mass) const {
 }
 
 double Player::max_speed(const GameConfig &config) const {
-  return config.speed_factor / sqrt(mass);
+  return ::max_speed(mass, config);
 }
 
 Player::Player(const json &data) : ObjectBase(data) {

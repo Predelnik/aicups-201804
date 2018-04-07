@@ -5,22 +5,13 @@
 
 using nlohmann::json;
 
-class MovingPoint
-{
-public:
-    Point position;
-    Point speed;
-};
-
 class MyPart : public Player {
 public:
   explicit MyPart(const json &data);
-  MovingPoint next_moving_point(MovingPoint speed_position,
-                                   const Point &acceleration, int ticks,
-                                   const GameConfig &config) const;
   explicit MyPart() = default;
   double visibility_radius(int fragment_cnt) const;
 
+  MovingPoint as_moving_point() const;
   Point visibility_center() const { return pos + speed.normalized() * 10.0; }
 
   bool is_visible(int fragment_cnt, const Point &pos) const {

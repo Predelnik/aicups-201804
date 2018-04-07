@@ -2,7 +2,9 @@
 
 #include "../nlohmann/json.hpp"
 #include "Context.h"
-#include "Strategy.h"
+#include "CellPrioritizationStrategy.h"
+
+#include <memory>
 
 using nlohmann::json;
 
@@ -19,5 +21,5 @@ public:
 private:
     void update_caches();
     Context m_context;
-    Strategy m_strategy;
+    std::unique_ptr<Strategy> m_strategy;
 };
