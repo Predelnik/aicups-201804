@@ -15,6 +15,7 @@ public:
   void initialize(const GameConfig &config) override;
 
 private:
+  constexpr static int angle_discretization = 20;
   const Context *ctx;
   mutable std::default_random_engine m_re;
 };

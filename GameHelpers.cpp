@@ -8,11 +8,12 @@
 double max_speed_circle_radius(const Player &player, const GameConfig &config) {
   MovingPoint mp{{0, 0}, {player.max_speed(config), 0}};
   auto mp1 = mp;
-  auto mp2 = next_moving_point(
-               mp, player.mass, mp.speed * Matrix::rotation(constant::pi / 2.0),
-               1, config);
-  auto alpha = -mp2.speed.angle ();
-  return std::tan (alpha) * (-mp1.position.x) - mp2.position.y;
+  auto mp2 = next_moving_point(mp, player.mass,
+                               mp.speed * Matrix::rotation(constant::pi / 2.0),
+                               1, config);
+  auto alpha = -mp2.speed.angle();
+  return (mp2.position.x) * std::tan(constant::pi / 2. - alpha) -
+         mp2.position.y;
 }
 
 MovingPoint next_moving_point(MovingPoint moving_point, double mass,
@@ -32,4 +33,26 @@ MovingPoint next_moving_point(MovingPoint moving_point, double mass,
 
 double max_speed(double mass, const GameConfig &config) {
   return config.speed_factor / sqrt(mass);
+}
+
+double x_distance_to_wall(const MovingPoint &mp, double radius,
+                          const GameConfig &config) {
+  double dist = constant::infinity;
+  if (mp.speed.x > 0)
+    dist = std::min(dist, (config.game_width - radius - mp.position.x) /
+                              cos(mp.speed.angle()));
+  if (mp.speed.x < 0)
+    dist = std::min(dist, (mp.position.x - radius) / -cos(mp.speed.angle()));
+  return dist;
+}
+
+double y_distance_to_wall(const MovingPoint &mp, double radius,
+                          const GameConfig &config) {
+  double dist = constant::infinity;
+  if (mp.speed.y > 0)
+    dist = std::min(dist, (config.game_height - radius - mp.position.y) /
+                              sin(mp.speed.angle()));
+  if (mp.speed.y < 0)
+    dist = std::min(dist, (mp.position.y - radius) / -sin(mp.speed.angle()));
+  return dist;
 }
