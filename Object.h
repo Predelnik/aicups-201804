@@ -6,6 +6,7 @@
 #include <variant>
 
 class GameConfig;
+class MovingPoint;
 using nlohmann::json;
 
 class ObjectBase {

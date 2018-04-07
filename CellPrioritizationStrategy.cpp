@@ -1,16 +1,19 @@
-﻿#include "Strategy.h"
-#include "Const.h"
+﻿#include "Const.h"
 #include "Matrix.h"
 #include "MyPart.h"
 #include "Object.h"
 #include "Response.h"
 #include "algorithm.h"
 #include <queue>
-#include <set>
 
-Strategy::Strategy() : m_re(std::random_device()()) {}
+#include "CellPrioritizationStrategy.h"
+#include "GameHelpers.h"
+#include "MovingPoint.h"
 
-const Player *Strategy::find_caughtable_enemy() {
+CellPrioritizationStrategy::CellPrioritizationStrategy()
+    : m_re(std::random_device()()) {}
+
+const Player *CellPrioritizationStrategy::find_caughtable_enemy() {
   auto get_mass = [this](const Player &pl) {
     if (!ctx->my_largest_part->can_eat(2.0 * pl.mass))
       return constant::infinity;
@@ -26,7 +29,7 @@ const Player *Strategy::find_caughtable_enemy() {
   return nullptr;
 }
 
-const Player *Strategy::find_dangerous_enemy() {
+const Player *CellPrioritizationStrategy::find_dangerous_enemy() {
   for (auto &p : ctx->players) {
     if (p.can_eat(ctx->my_parts.back().mass * 0.9))
       return &p;
@@ -34,7 +37,7 @@ const Player *Strategy::find_dangerous_enemy() {
   return nullptr;
 }
 
-const Player *Strategy::find_weak_enemy() {
+const Player *CellPrioritizationStrategy::find_weak_enemy() {
   auto get_mass = [this](const Player &pl) {
     if (!ctx->my_largest_part || !ctx->my_largest_part->can_eat(pl.mass))
       return constant::infinity;
@@ -50,20 +53,20 @@ const Player *Strategy::find_weak_enemy() {
   return nullptr;
 }
 
-Response Strategy::move_randomly() const {
+Response CellPrioritizationStrategy::move_randomly() const {
   auto x =
       std::uniform_real_distribution<double>(0.0, ctx->config.game_width)(m_re);
   auto y = std::uniform_real_distribution<double>(0.0, ctx->config.game_height)(
       m_re);
-  return Response{}.pos({x, y});
+  return Response{}.target({x, y});
 }
 
-Cell Strategy::point_cell(const Point &point) const {
+Cell CellPrioritizationStrategy::point_cell(const Point &point) const {
   return {static_cast<int>(point.x / cell_size),
           static_cast<int>(point.y / cell_size)};
 }
 
-void Strategy::check_visible_squares() {
+void CellPrioritizationStrategy::check_visible_squares() {
   for (int i = 0; i < cell_x_cnt; ++i)
     for (int j = 0; j < cell_y_cnt; ++j) {
       bool all_visible = true;
@@ -81,8 +84,9 @@ void Strategy::check_visible_squares() {
 }
 
 template <typename T>
-void Strategy::fill_circle(multi_vector<T, 2> &target, const T &val,
-                           const Point &pos, double radius) {
+void CellPrioritizationStrategy::fill_circle(multi_vector<T, 2> &target,
+                                             const T &val, const Point &pos,
+                                             double radius) {
   auto left_top = point_cell(pos - Point{radius, radius});
   auto bottom_right = point_cell(pos + Point{radius, radius});
   for (auto ptr : {&left_top, &bottom_right}) {
@@ -94,7 +98,7 @@ void Strategy::fill_circle(multi_vector<T, 2> &target, const T &val,
       target[i][j] = val;
 }
 
-void Strategy::update_danger() {
+void CellPrioritizationStrategy::update_danger() {
   danger_map.fill(0.0);
   auto mark_obj = [this](const Point &pos, double radius) {
     auto left_top = point_cell(pos - Point{radius, radius});
@@ -126,7 +130,8 @@ void Strategy::update_danger() {
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
 
-const MyPart *Strategy::nearest_my_part_to(const Point &point) const {
+const MyPart *
+CellPrioritizationStrategy::nearest_my_part_to(const Point &point) const {
   if (ctx->my_parts.empty())
     return nullptr;
   auto it = min_element_op(
@@ -135,7 +140,7 @@ const MyPart *Strategy::nearest_my_part_to(const Point &point) const {
   return &*it;
 }
 
-void Strategy::check_if_goal_is_reached() {
+void CellPrioritizationStrategy::check_if_goal_is_reached() {
   for (auto ptr : {&goal}) {
     if (*ptr) {
       auto p = nearest_my_part_to(**ptr);
@@ -149,29 +154,29 @@ void Strategy::check_if_goal_is_reached() {
   }
 }
 
-void Strategy::update_blocked_cells() {
+void CellPrioritizationStrategy::update_blocked_cells() {
   for (auto &val : blocked_cell)
     if (val > 0)
       --val;
 }
 
-void Strategy::update_enemies_seen() {
+void CellPrioritizationStrategy::update_enemies_seen() {
   for (auto &p : ctx->players)
     if (p.can_eat(ctx->my_total_mass))
       fill_circle(dangerous_enemy_seen_tick, ctx->tick, p.pos, p.radius);
 }
 
-void Strategy::update_last_tick_enemy_seen() {
+void CellPrioritizationStrategy::update_last_tick_enemy_seen() {
   if (!ctx->players.empty())
     last_tick_enemy_seen = ctx->tick;
 }
 
-void Strategy::check_subgoal() {
+void CellPrioritizationStrategy::check_subgoal() {
   if (ctx->tick == subgoal_reset_tick)
     subgoal = {};
 }
 
-void Strategy::update() {
+void CellPrioritizationStrategy::update() {
   check_subgoal();
   check_if_goal_is_reached();
   check_visible_squares();
@@ -189,7 +194,8 @@ public:
 };
 } // namespace
 
-CellSpeed Strategy::to_cell_speed(const MyPart &p, const Point &val) const {
+CellSpeed CellPrioritizationStrategy::to_cell_speed(const MyPart &p,
+                                                    const Point &val) const {
   if (val.length() < p.max_speed(ctx->config) * 0.5)
     return {0, 0};
   constexpr auto unit = constant::pi / 4;
@@ -202,7 +208,8 @@ CellSpeed Strategy::to_cell_speed(const MyPart &p, const Point &val) const {
   return tbl[index];
 }
 
-Point Strategy::from_cell_speed(const MyPart &p, const CellSpeed &sp) const {
+Point CellPrioritizationStrategy::from_cell_speed(const MyPart &p,
+                                                  const CellSpeed &sp) const {
   double speed_length = p.max_speed(ctx->config);
   if (sp[0] != 0 && sp[1] != 0)
     speed_length *= constant::sqrt2;
@@ -215,7 +222,8 @@ struct move_result {
   CellSpeed speed;
 };
 
-std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
+std::optional<Point>
+CellPrioritizationStrategy::next_step_to_goal(double max_danger_level) {
   static multi_vector<move_result, 4> move_cache(3, 3, 3, 3);
   move_cache.fill({});
   auto goal_cell = point_cell(*goal);
@@ -223,7 +231,7 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     return *subgoal;
 
   if (danger_map[goal_cell] > max_danger_level) {
-    reset_goal ({});
+    reset_goal({});
     return {};
   }
 
@@ -273,8 +281,8 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
             int t = 0;
             while (point_cell(cur_moving_pnt.position) == cur.cell) {
               constexpr int tick_resolution = 1;
-              cur_moving_pnt = p->next_moving_point(
-                  cur_moving_pnt, from_cell_speed(*p, {x_dir, y_dir}),
+              cur_moving_pnt = next_moving_point(
+                  cur_moving_pnt, p->mass, from_cell_speed(*p, {x_dir, y_dir}),
                   tick_resolution, ctx->config);
               t += tick_resolution;
             }
@@ -339,16 +347,16 @@ std::optional<Point> Strategy::next_step_to_goal(double max_danger_level) {
     return next_step_to_goal(0.6);
 
   blocked_cell[goal_cell] = blocked_cell_recheck_frequency;
-  reset_goal ({});
+  reset_goal({});
   return {};
 }
 
-Point Strategy::cell_center(const Cell &cell) {
+Point CellPrioritizationStrategy::cell_center(const Cell &cell) {
   return {cell[0] * cell_size + cell_size * 0.5,
           cell[1] * cell_size + cell_size * 0.5};
 }
 
-double Strategy::cell_priority(const Cell &cell) const {
+double CellPrioritizationStrategy::cell_priority(const Cell &cell) const {
   constexpr auto tick_coeff = 1.0;
   constexpr auto center_coeff = 0.000;
   constexpr auto enemy_seen_tick_coeff = 10.0;
@@ -358,16 +366,17 @@ double Strategy::cell_priority(const Cell &cell) const {
   double center_shift = (sqrt(2.) * ctx->config.game_width -
                          Point{cell_x_cnt * 0.5, cell_y_cnt * 0.5}.distance_to(
                              Point(cell[0], cell[1])));
-  auto angle1 = (cell_center (cell) - ctx->my_center).angle ();
+  auto angle1 = (cell_center(cell) - ctx->my_center).angle();
   auto angle2 = ctx->speed_angle;
-  auto angle_badness = abs (angle1 - angle2) * 100.0;
+  auto angle_badness = abs(angle1 - angle2) * 100.0;
 
   double enemy_seen_tick_diff = (ctx->tick - dangerous_enemy_seen_tick[cell]);
   return tick_coeff * tick_diff + center_coeff * center_shift +
-         enemy_seen_tick_coeff * enemy_seen_tick_diff - cell_center (cell).distance_to(ctx->my_center) - angle_badness;
+         enemy_seen_tick_coeff * enemy_seen_tick_diff -
+         cell_center(cell).distance_to(ctx->my_center) - angle_badness;
 }
 
-Response Strategy::move_to_goal_or_repriotize() {
+Response CellPrioritizationStrategy::move_to_goal_or_repriotize() {
   if (goal) {
     Response rsp;
     auto pos = next_step_to_goal(0.1);
@@ -377,7 +386,7 @@ Response Strategy::move_to_goal_or_repriotize() {
       auto p = nearest_my_part_to(*pos);
       if (!p)
         return stop();
-      rsp.pos(p->pos + (*pos - p->pos) * 5.0);
+      rsp.target(p->pos + (*pos - p->pos) * 5.0);
     }
     if (goal->distance_to(ctx->my_center) > goal_distance_to_justify_split &&
         ctx->tick - last_tick_enemy_seen > split_if_enemy_was_not_seen_for &&
@@ -407,14 +416,14 @@ Response Strategy::move_to_goal_or_repriotize() {
   auto food_pos = best_food_pos();
 
   if (!food_pos || best_priority > cur_priority * new_opportunity_coeff)
-    return Response{}.pos(*(reset_goal (cell_center(best_cell))));
+    return Response{}.target(*(reset_goal(cell_center(best_cell))));
   if (food_pos)
-    return Response{}.pos(*(reset_goal (food_pos)));
+    return Response{}.target(*(reset_goal(food_pos)));
 
   return continue_movement();
 }
 
-std::optional<Point> Strategy::best_food_pos() const {
+std::optional<Point> CellPrioritizationStrategy::best_food_pos() const {
   if (ctx->my_parts.empty())
     return {};
   auto my_radius = ctx->my_parts.front().radius;
@@ -446,7 +455,7 @@ std::optional<Point> Strategy::best_food_pos() const {
   return ans;
 }
 
-const Food *Strategy::find_nearest_food() {
+const Food *CellPrioritizationStrategy::find_nearest_food() {
   if (ctx->food.empty())
     return nullptr;
   auto dist = [&](const Food &food) {
@@ -479,32 +488,32 @@ const Food *Strategy::find_nearest_food() {
   return nullptr;
 }
 
-Point Strategy::future_center(double time) {
+Point CellPrioritizationStrategy::future_center(double time) {
   return ctx->my_center + ctx->my_parts.front().speed * time;
 }
 
-Response Strategy::continue_movement() {
+Response CellPrioritizationStrategy::continue_movement() {
   if (ctx->my_parts.empty())
     return Response{}.debug("Too dead to move");
 
-  return Response{}.pos(future_center(10.0));
+  return Response{}.target(future_center(10.0));
 }
 
-Response Strategy::stop() {
+Response CellPrioritizationStrategy::stop() {
   if (ctx->my_parts.empty())
     return Response{}.debug("Too dead to even stop");
 
-  return Response{}.pos(ctx->my_center);
+  return Response{}.target(ctx->my_center);
 }
 
-std::optional<Point> Strategy::reset_goal(std::optional<Point> point)
-{
-    goal = point;
-    subgoal = {};
-    return goal;
+std::optional<Point>
+CellPrioritizationStrategy::reset_goal(std::optional<Point> point) {
+  goal = point;
+  subgoal = {};
+  return goal;
 }
 
-Response Strategy::get_response(const Context &context) {
+Response CellPrioritizationStrategy::get_response(const Context &context) {
   ctx = &context;
   update();
 
@@ -519,15 +528,15 @@ Response Strategy::get_response(const Context &context) {
           if ((ctx->my_parts.front().speed.normalized() -
                (enemy->pos - ctx->my_center).normalized())
                   .length() > 1e-2)
-            return Response{}.pos(enemy->pos);
+            return Response{}.target(enemy->pos);
           else
-            return Response{}.pos(enemy->pos).split(true);
+            return Response{}.target(enemy->pos).split(true);
         }
       }
     }
     if (!goal_set) {
       if (auto enemy = find_weak_enemy()) {
-        reset_goal (enemy->pos);
+        reset_goal(enemy->pos);
         goal_set = true;
       }
     }
@@ -538,15 +547,15 @@ Response Strategy::get_response(const Context &context) {
 #endif
     return rsp;
   }
-  return Response{}.pos({}).debug("Died");
+  return Response{}.target({}).debug("Died");
 }
 
-bool Strategy::is_valid_cell(const Cell &cell) const {
+bool CellPrioritizationStrategy::is_valid_cell(const Cell &cell) const {
   return cell[0] >= 0 && cell[0] < cell_x_cnt && cell[1] >= 0 &&
          cell[1] < cell_y_cnt;
 }
 
-void Strategy::initialize(const GameConfig &config) {
+void CellPrioritizationStrategy::initialize(const GameConfig &config) {
   cell_x_cnt = static_cast<int>(config.game_width / cell_size);
   cell_y_cnt = static_cast<int>(config.game_height / cell_size);
   auto resize_arr = [this](auto &arr) { arr.resize(cell_x_cnt, cell_y_cnt); };
@@ -563,12 +572,12 @@ void Strategy::initialize(const GameConfig &config) {
   std::shuffle(cell_order.begin(), cell_order.end(), m_re);
 }
 
-bool Strategy::try_run_away_from(const Point &enemy_pos) {
+bool CellPrioritizationStrategy::try_run_away_from(const Point &enemy_pos) {
   auto try_point = [this](const Point &next_point) {
     auto cell = point_cell(next_point);
     if (ctx->config.is_point_inside(next_point) &&
         danger_map[cell] < constant::eps && blocked_cell[cell] == 0) {
-      reset_goal (next_point);
+      reset_goal(next_point);
       return true;
     }
     return false;

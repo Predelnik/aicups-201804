@@ -19,7 +19,7 @@ double Point::distance_to_line(const Point &a, const Point &b) const {
          a.distance_to(b);
 }
 
-auto Point::operator*(const Matrix& m) -> Self
+auto Point::operator*(const Matrix& m) const -> Self
 {
     return {x * m.m[0] + y * m.m[2], x * m.m[1] + y * m.m[3]};
 }
@@ -30,7 +30,7 @@ double Point::squared_distance_to(const Point &other) const {
   return x_d * x_d + y_d * y_d;
 }
 
-double Point::squared_length()
+double Point::squared_length() const
 {
     return pow (x, 2) + pow (y, 2);
 }

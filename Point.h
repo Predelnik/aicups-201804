@@ -57,7 +57,7 @@ public:
   Self operator*(double mult) const { return {x * mult, y * mult}; }
   Self operator/(double mult) const { return {x / mult, y / mult}; }
 
-  Self operator*(const Matrix &m);
+  Self operator*(const Matrix &m) const;
 
   Self &operator/=(double mult) {
     *this = *this / mult;
@@ -65,8 +65,8 @@ public:
   }
 
   double squared_distance_to(const Point &other) const;
-    double squared_length();
-    double angle();
+  double squared_length() const;
+  double angle();
 };
 
 std::array<Point, 2> rect_around(const Point &pnt, double side);
