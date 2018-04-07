@@ -12,8 +12,7 @@ double max_speed_circle_radius(const Player &player, const GameConfig &config) {
                                mp.speed * Matrix::rotation(constant::pi / 2.0),
                                1, config);
   auto alpha = -mp2.speed.angle();
-  return (mp2.position.x) * std::tan(constant::pi / 2. - alpha) -
-         mp2.position.y;
+  return (mp2.pos.x) * std::tan(constant::pi / 2. - alpha) - mp2.pos.y;
 }
 
 MovingPoint next_moving_point(MovingPoint moving_point, double mass,
@@ -26,7 +25,7 @@ MovingPoint next_moving_point(MovingPoint moving_point, double mass,
         config.inertia_factor / mass;
     if (moving_point.speed.squared_length() > pow(ms, 2))
       moving_point.speed = moving_point.speed.normalized() * ms;
-    moving_point.position += moving_point.speed;
+    moving_point.pos += moving_point.speed;
   }
   return moving_point;
 }
@@ -39,10 +38,10 @@ double x_distance_to_wall(const MovingPoint &mp, double radius,
                           const GameConfig &config) {
   double dist = constant::infinity;
   if (mp.speed.x > 0)
-    dist = std::min(dist, (config.game_width - radius - mp.position.x) /
+    dist = std::min(dist, (config.game_width - radius - mp.pos.x) /
                               cos(mp.speed.angle()));
   if (mp.speed.x < 0)
-    dist = std::min(dist, (mp.position.x - radius) / -cos(mp.speed.angle()));
+    dist = std::min(dist, (mp.pos.x - radius) / -cos(mp.speed.angle()));
   return dist;
 }
 
@@ -50,9 +49,21 @@ double y_distance_to_wall(const MovingPoint &mp, double radius,
                           const GameConfig &config) {
   double dist = constant::infinity;
   if (mp.speed.y > 0)
-    dist = std::min(dist, (config.game_height - radius - mp.position.y) /
+    dist = std::min(dist, (config.game_height - radius - mp.pos.y) /
                               sin(mp.speed.angle()));
   if (mp.speed.y < 0)
-    dist = std::min(dist, (mp.position.y - radius) / -sin(mp.speed.angle()));
+    dist = std::min(dist, (mp.pos.y - radius) / -sin(mp.speed.angle()));
   return dist;
+}
+
+bool can_eat(double eater_mass, double eatee_mass) {
+  return eater_mass >= eatee_mass * constant::eating_mass_coeff;
+}
+
+bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
+             double eatee_mass, const Point &eatee_pos, double eatee_radius) {
+  return can_eat(eater_mass, eatee_mass) &&
+         eater_pos.distance_to(eatee_pos) - eatee_radius +
+                 (2 * eatee_radius) * constant::interaction_dist_coeff <
+             eater_radius;
 }

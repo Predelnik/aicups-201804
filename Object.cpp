@@ -10,10 +10,6 @@ ObjectBase::ObjectBase(const json &data) {
 
 Virus::Virus(const json &data) : ObjectBase(data) { mass = data["M"]; }
 
-bool Player::can_eat(double opponent_mass) const {
-  return mass >= opponent_mass * constant::eating_mass_coeff;
-}
-
 double Player::max_speed(const GameConfig &config) const {
   return ::max_speed(mass, config);
 }
