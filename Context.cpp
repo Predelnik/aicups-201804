@@ -3,8 +3,8 @@
 #include "Object.h"
 #include "overload.h"
 
-#include <variant>
 #include "algorithm.h"
+#include <variant>
 
 namespace {
 std::vector<MyPart> to_my_parts(const json &data) {
@@ -23,7 +23,9 @@ void Context::update_config(const json &data) { config = GameConfig{data}; }
 void Context::update(const json &data) {
   ++tick;
   my_parts = to_my_parts(data["Mine"]);
-  std::sort (my_parts.begin (), my_parts.end(), [](const auto &lhs, const auto &rhs){ return lhs.mass > rhs.mass; });
+  std::sort(
+      my_parts.begin(), my_parts.end(),
+      [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   fill_objects(data["Objects"]);
   update_caches();
 }
@@ -62,16 +64,23 @@ void Context::update_largest_part() {
     my_largest_part = nullptr;
     return;
   }
-  my_largest_part = &*max_element_op(my_parts.begin(), my_parts.end(), [](const MyPart &part){ return part.mass;});
+  my_largest_part =
+      &*max_element_op(my_parts.begin(), my_parts.end(),
+                       [](const MyPart &part) { return part.mass; });
 }
 
-void Context::update_speed_data()
-{
+void Context::update_speed_data() {
   std::vector<std::pair<Point, double>> speed;
   for (auto &p : my_parts)
     speed.emplace_back(p.speed, p.mass);
   avg_speed = weighted_center(speed);
-  speed_angle = avg_speed.angle ();
+  speed_angle = avg_speed.angle();
+}
+
+void Context::update_food_map() {
+  food_map.clear();
+  for (auto &f : food)
+    food_map.insert({f.pos, &f});
 }
 
 void Context::update_caches() {
@@ -79,7 +88,8 @@ void Context::update_caches() {
   update_my_radius();
   update_total_mass();
   update_largest_part();
-  update_speed_data ();
+  update_speed_data();
+  update_food_map();
 }
 
 void Context::update_my_center() {

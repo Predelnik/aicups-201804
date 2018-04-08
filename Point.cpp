@@ -19,6 +19,11 @@ double Point::distance_to_line(const Point &a, const Point &b) const {
          a.distance_to(b);
 }
 
+bool Point::operator<(const Point &other) const
+{
+    return std::tie (x, y) < std::tie (other.x, other.y);
+}
+
 auto Point::operator*(const Matrix& m) const -> Self
 {
     return {x * m.m[0] + y * m.m[2], x * m.m[1] + y * m.m[3]};

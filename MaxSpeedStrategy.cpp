@@ -10,23 +10,24 @@
 
 MaxSpeedStrategy::MaxSpeedStrategy() : m_re(std::random_device()()) {}
 
-Response MaxSpeedStrategy::move_by_vector(const Point &v)
-{
-    auto &c = ctx->my_center;
-    auto C = -v.y * c.x + v.x * c.y;
-    double xl_int = v.x < 0.0 ? -C / -v.x : constant::infinity;
-    double yl_int = v.y < 0.0 ? -C / v.y : constant::infinity;
-    double xr_int = v.x > 0.0 ? (-C - v.y * ctx->config.game_width) / -v.x : constant::infinity;
-    double yr_int = v.y > 0.0  ? (-C + v.x * ctx->config.game_height) / v.y : constant::infinity;
-    if (xl_int >= 0.0 && xl_int <= ctx->config.game_height)
-        return Response{}.target({0., xl_int});
-    if (xr_int >= 0.0 && xr_int <= ctx->config.game_height)
-        return Response{}.target({ctx->config.game_width, xr_int});
-    if (yl_int >= 0.0 && yl_int <= ctx->config.game_width)
-        return Response{}.target({yl_int, 0.});
-    if (yr_int >= 0.0 && yr_int <= ctx->config.game_width)
-        return Response{}.target({yr_int, ctx->config.game_height});
-    return {};
+Response MaxSpeedStrategy::move_by_vector(const Point &v) {
+  auto &c = ctx->my_center;
+  auto C = -v.y * c.x + v.x * c.y;
+  double xl_int = v.x < 0.0 ? -C / -v.x : constant::infinity;
+  double yl_int = v.y < 0.0 ? -C / v.y : constant::infinity;
+  double xr_int = v.x > 0.0 ? (-C - v.y * ctx->config.game_width) / -v.x
+                            : constant::infinity;
+  double yr_int = v.y > 0.0 ? (-C + v.x * ctx->config.game_height) / v.y
+                            : constant::infinity;
+  if (xl_int >= 0.0 && xl_int <= ctx->config.game_height)
+    return Response{}.target({0., xl_int});
+  if (xr_int >= 0.0 && xr_int <= ctx->config.game_height)
+    return Response{}.target({ctx->config.game_width, xr_int});
+  if (yl_int >= 0.0 && yl_int <= ctx->config.game_width)
+    return Response{}.target({yl_int, 0.});
+  if (yr_int >= 0.0 && yr_int <= ctx->config.game_width)
+    return Response{}.target({yr_int, ctx->config.game_height});
+  return {};
 }
 
 Response MaxSpeedStrategy::speed_case() {
@@ -64,13 +65,13 @@ Response MaxSpeedStrategy::speed_case() {
     }
     for (int iteration = 0; iteration < 10; ++iteration) {
       std::set<int> food_taken;
-      for (int food_index = 0; food_index < ctx->food.size(); ++food_index) {
+      for (int food_index = 0; food_index < m_food_seen.size(); ++food_index) {
         if (food_taken.count(food_index))
           continue;
         for (int part_index = 0; part_index < ctx->my_parts.size();
              ++part_index) {
           if (next_mps[part_index].pos.squared_distance_to(
-                  ctx->food[food_index].pos) <
+                  m_food_seen[food_index].pos) <
               ctx->my_parts[part_index].radius) {
             score += static_cast<int>(100 * ctx->config.food_mass);
             food_taken.insert(food_index);
@@ -109,10 +110,16 @@ Response MaxSpeedStrategy::speed_case() {
       best_angle = angle;
     }
   }
-  auto r = move_by_vector (ctx->avg_speed * Matrix::rotation(best_angle));
+  auto r = move_by_vector(ctx->avg_speed * Matrix::rotation(best_angle));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       ctx->players.empty())
     r.split();
+#ifdef CUSTOM_DEBUG
+  std::vector<std::array<Point, 2>> lines;
+  for (auto &f : m_food_seen)
+    lines.push_back({ctx->my_center, f.pos});
+  r.debug_lines(lines);
+#endif CUSTOM_DEBUG
   return r;
 }
 
@@ -123,8 +130,52 @@ Response MaxSpeedStrategy::no_speed_case() {
                            Point{50.0, 0.} * Matrix::rotation(angle));
 }
 
+void MaxSpeedStrategy::remove_eaten_food() {
+  m_food_seen.erase(
+      std::remove_if(m_food_seen.begin(), m_food_seen.end(),
+                     [this](const FoodSeen &fs) {
+                       for (auto &p : ctx->my_parts) {
+                         if (p.pos.distance_to(fs.pos) <
+                                 p.visibility_radius(
+                                     static_cast<int>(ctx->my_parts.size())) &&
+                             ctx->food_map.count(fs.pos) == 0) {
+                           auto it = m_food_seen_set.find(fs.pos);
+                           m_food_seen_set.erase(it);
+                           return true;
+                         }
+                       }
+                       return false;
+                     }),
+      m_food_seen.end());
+}
+
+void MaxSpeedStrategy::remove_stale_food() {
+  while (!m_food_seen.empty() &&
+         m_food_seen.front().tick < ctx->tick - food_shelf_life) {
+    auto it = m_food_seen_set.find(m_food_seen.front().pos);
+    m_food_seen_set.erase(it);
+    m_food_seen.pop_front();
+  }
+}
+
+void MaxSpeedStrategy::add_new_food_to_seen() {
+  for (auto &f : ctx->food) {
+    if (ctx->food_map.count(f.pos) > m_food_seen_set.count(f.pos)) {
+      m_food_seen.push_back({f.pos, ctx->tick});
+      m_food_seen_set.insert(f.pos);
+    }
+  }
+}
+
+void MaxSpeedStrategy::update() {
+  remove_stale_food();
+  remove_eaten_food();
+  add_new_food_to_seen();
+}
+
 Response MaxSpeedStrategy::get_response(const Context &context) {
   ctx = &context;
+  update();
 
   if (ctx->avg_speed.squared_length() < 0.001)
     return no_speed_case();
