@@ -25,6 +25,7 @@ private:
   void update_total_mass();
   void update_largest_part();
   void update_speed_data();
+  void update_food_map();
   void update_caches();
   void update_my_center();
 
@@ -35,6 +36,8 @@ public:
   std::vector<Ejection> ejections;
   std::vector<Player> players;
   std::vector<Virus> viruses;
+
+  std::multimap<Point, Food*> food_map;
 
   Point my_center;
   double my_radius;

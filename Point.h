@@ -52,6 +52,7 @@ public:
     return *this;
   }
 
+  bool operator< (const Point &other) const;
   Self operator-() const { return {-x, -y}; }
 
   Self operator*(double mult) const { return {x * mult, y * mult}; }
