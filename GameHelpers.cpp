@@ -9,7 +9,7 @@ double max_speed_circle_radius(const Player &player, const GameConfig &config) {
   MovingPoint mp{{0, 0}, {player.max_speed(config), 0}};
   auto mp1 = mp;
   auto mp2 = next_moving_point(mp, player.mass,
-                               mp.speed * Matrix::rotation(constant::pi / 2.0),
+                               mp.speed * Matrix::rotation(-constant::pi / 2.0),
                                1, config);
   auto alpha = -mp2.speed.angle();
   return (mp2.pos.x) * std::tan(constant::pi / 2. - alpha) - mp2.pos.y;

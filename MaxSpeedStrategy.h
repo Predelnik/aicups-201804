@@ -20,7 +20,8 @@ class MaxSpeedStrategy : public Strategy {
 public:
   MaxSpeedStrategy();
   Response move_by_vector(const Point &v);
-  Response speed_case();
+    Response response_for_angle(double min_angle, double max_angle);
+    Response speed_case();
   Response no_speed_case();
   void remove_eaten_food();
   void remove_stale_food();

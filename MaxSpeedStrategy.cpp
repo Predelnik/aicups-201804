@@ -31,13 +31,22 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
   return {};
 }
 
-Response MaxSpeedStrategy::speed_case() {
+Response MaxSpeedStrategy::response_for_angle(double min_angle,
+                                              double max_angle) {
   double best_angle = 0.0;
   int best_angle_score = -std::numeric_limits<int>::min();
+#ifdef CUSTOM_DEBUG
+  std::vector<std::array<Point, 2>> lines;
+#endif
   for (int angle_try = 0; angle_try <= angle_discretization; ++angle_try) {
     double angle =
-        -constant::pi / 2.0 + constant::pi * angle_try / angle_discretization;
-    auto accel = (ctx->avg_speed * Matrix::rotation(angle)).normalized();
+        min_angle + (max_angle - min_angle) * angle_try / angle_discretization;
+    auto accel = (Point(1., 0.) * Matrix::rotation(angle));
+
+#if 0 && defined CUSTOM_DEBUG
+    lines.push_back({ctx->my_center, ctx->my_center + accel * 100.0});
+#endif
+
     int score = 0;
     static std::vector<MovingPoint> mps;
     mps.resize(ctx->my_parts.size());
@@ -75,7 +84,9 @@ Response MaxSpeedStrategy::speed_case() {
           if (next_mps[part_index].pos.squared_distance_to(
                   m_food_seen[food_index].pos) <
               ctx->my_parts[part_index].radius) {
-            score += static_cast<int>((future_scan_iteration_count - iteration) * 10 * ctx->config.food_mass);
+            score +=
+                static_cast<int>((future_scan_iteration_count - iteration) *
+                                 10 * ctx->config.food_mass);
             food_taken.insert(food_index);
           }
         }
@@ -105,31 +116,36 @@ Response MaxSpeedStrategy::speed_case() {
                                                  accel, 1, ctx->config);
       }
     }
-    score += std::uniform_int_distribution<int>(0, 200)(m_re);
+    score += std::uniform_int_distribution<int>(0, 100)(m_re);
 
     if (score > best_angle_score) {
       best_angle_score = score;
       best_angle = angle;
     }
   }
-  auto r = move_by_vector(ctx->avg_speed * Matrix::rotation(best_angle));
+  auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       ctx->players.empty())
     r.split();
-#if 1 && defined CUSTOM_DEBUG
-  std::vector<std::array<Point, 2>> lines;
+#ifdef CUSTOM_DEBUG
+#if 0
   for (auto &f : m_food_seen)
     lines.push_back({ctx->my_center, f.pos});
-  r.debug_lines(lines);
-#endif CUSTOM_DEBUG
+#endif
+r.debug_lines(lines);
+#endif
   return r;
 }
 
+Response MaxSpeedStrategy::speed_case() {
+  auto speed_angle = ctx->avg_speed.angle();
+  return response_for_angle(speed_angle - constant::pi / 2.,
+                            speed_angle + constant::pi / 2.);
+}
+
 Response MaxSpeedStrategy::no_speed_case() {
-  auto angle =
-      std::uniform_real_distribution<double>(0, 2 * constant::pi)(m_re);
-  return Response{}.target(ctx->my_center +
-                           Point{50.0, 0.} * Matrix::rotation(angle));
+  return response_for_angle(0.,
+                            2 * constant::pi);
 }
 
 void MaxSpeedStrategy::remove_eaten_food() {
