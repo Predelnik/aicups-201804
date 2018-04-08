@@ -13,4 +13,6 @@ namespace constant
   constexpr double interaction_dist_coeff = 2./3.; // distance between eater and eatee should be eating_dist_coeff * eater radius
   constexpr int food_spawn_delay = 40; // each 40 ticks food will spawn in  4 places on the map
   constexpr double min_split_mass = 120.0;
+  constexpr double visibiliy_coeff = 4.0;
+  constexpr double fragments_visibiliy_coeff = 2.5;
 }

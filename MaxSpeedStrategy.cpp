@@ -8,7 +8,8 @@
 #include "Response.h"
 #include <set>
 
-MaxSpeedStrategy::MaxSpeedStrategy() : m_re(std::random_device()()) {}
+MaxSpeedStrategy::MaxSpeedStrategy()
+    : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
 
 Response MaxSpeedStrategy::move_by_vector(const Point &v) {
   auto &c = ctx->my_center;
@@ -63,7 +64,8 @@ Response MaxSpeedStrategy::speed_case() {
               100 * enemy.pos.distance_to(next_mps[part_index].pos));
         }
     }
-    for (int iteration = 0; iteration < 10; ++iteration) {
+    for (int iteration = 0; iteration < future_scan_iteration_count;
+         ++iteration) {
       std::set<int> food_taken;
       for (int food_index = 0; food_index < m_food_seen.size(); ++food_index) {
         if (food_taken.count(food_index))
@@ -73,7 +75,7 @@ Response MaxSpeedStrategy::speed_case() {
           if (next_mps[part_index].pos.squared_distance_to(
                   m_food_seen[food_index].pos) <
               ctx->my_parts[part_index].radius) {
-            score += static_cast<int>(100 * ctx->config.food_mass);
+            score += static_cast<int>((future_scan_iteration_count - iteration) * 10 * ctx->config.food_mass);
             food_taken.insert(food_index);
           }
         }
@@ -103,7 +105,7 @@ Response MaxSpeedStrategy::speed_case() {
                                                  accel, 1, ctx->config);
       }
     }
-    score += std::uniform_int_distribution<int>(0, 29)(m_re);
+    score += std::uniform_int_distribution<int>(0, 200)(m_re);
 
     if (score > best_angle_score) {
       best_angle_score = score;
@@ -114,7 +116,7 @@ Response MaxSpeedStrategy::speed_case() {
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       ctx->players.empty())
     r.split();
-#ifdef CUSTOM_DEBUG
+#if 1 && defined CUSTOM_DEBUG
   std::vector<std::array<Point, 2>> lines;
   for (auto &f : m_food_seen)
     lines.push_back({ctx->my_center, f.pos});
@@ -135,7 +137,7 @@ void MaxSpeedStrategy::remove_eaten_food() {
       std::remove_if(m_food_seen.begin(), m_food_seen.end(),
                      [this](const FoodSeen &fs) {
                        for (auto &p : ctx->my_parts) {
-                         if (p.pos.distance_to(fs.pos) <
+                         if (p.visibility_center().distance_to(fs.pos) <
                                  p.visibility_radius(
                                      static_cast<int>(ctx->my_parts.size())) &&
                              ctx->food_map.count(fs.pos) == 0) {

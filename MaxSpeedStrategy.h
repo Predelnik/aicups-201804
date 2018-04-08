@@ -6,6 +6,7 @@
 #include <random>
 #include <deque>
 #include <set>
+#include "Defines.h"
 
 class Context;
 
@@ -32,8 +33,9 @@ private:
   std::deque<FoodSeen> m_food_seen;
   std::multiset<Point> m_food_seen_set;
 
-  constexpr static int angle_discretization = 20;
-  constexpr static int food_shelf_life = 200;
+  constexpr static int food_shelf_life = 350;
+  constexpr static int angle_discretization = DEBUG_RELEASE_VALUE(20, 40);
+  constexpr static int future_scan_iteration_count = DEBUG_RELEASE_VALUE(10, 20);
   const Context *ctx;
   mutable std::default_random_engine m_re;
 };

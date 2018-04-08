@@ -36,7 +36,8 @@ public:
 class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
-  double max_speed(const GameConfig &config) const;
+    double visibility_radius(int fragment_cnt) const;
+    double max_speed(const GameConfig &config) const;
 
 protected:
   Player() = default;
