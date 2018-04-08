@@ -24,18 +24,24 @@ Response MaxSpeedStrategy::speed_case() {
                    [](const MyPart &p) { return p.as_moving_point(); });
     static std::vector<MovingPoint> next_mps;
     next_mps.resize(ctx->my_parts.size());
-    for (int j = 0; j < ctx->my_parts.size(); ++j) {
-      next_mps[j] = next_moving_point(mps[j], ctx->my_parts[j].mass, accel, 1,
-                                      ctx->config);
-      auto r = max_speed_circle_radius(ctx->my_parts[j], ctx->config);
-      auto x_to_wall =
-          x_distance_to_wall(next_mps[j], ctx->my_parts[j].radius, ctx->config);
+    for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
+      next_mps[part_index] =
+          next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
+                            accel, 1, ctx->config);
+      auto r = max_speed_circle_radius(ctx->my_parts[part_index], ctx->config);
+      auto x_to_wall = x_distance_to_wall(
+          next_mps[part_index], ctx->my_parts[part_index].radius, ctx->config);
       if (x_to_wall < r)
         score -= static_cast<int>(100000.0 * ((r - x_to_wall) / r));
-      auto y_to_wall =
-          y_distance_to_wall(next_mps[j], ctx->my_parts[j].radius, ctx->config);
+      auto y_to_wall = y_distance_to_wall(
+          next_mps[part_index], ctx->my_parts[part_index].radius, ctx->config);
       if (y_to_wall < r)
         score -= static_cast<int>(100000.0 * ((r - y_to_wall) / r));
+      for (auto &enemy : ctx->players)
+        if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
+          score += static_cast<int>(
+              100 * enemy.pos.distance_to(next_mps[part_index].pos));
+        }
     }
     for (int iteration = 0; iteration < 10; ++iteration) {
       std::set<int> food_taken;
@@ -66,9 +72,6 @@ Response MaxSpeedStrategy::speed_case() {
                       enemy.pos, enemy.radius)) {
             score += static_cast<int>(50 * enemy.mass);
             players_taken.insert(player_index);
-          } else if (can_eat(enemy.mass, p.mass)) {
-            score += static_cast<int>(1000 * enemy.pos.distance_to(next_mps[part_index].pos));
-            players_taken.insert(player_index);
           }
         }
       }
@@ -90,8 +93,9 @@ Response MaxSpeedStrategy::speed_case() {
   auto r = Response{}.target(
       ctx->my_center +
       (ctx->avg_speed * Matrix::rotation(best_angle)).normalized() * 50.0);
-  if (ctx->my_parts.size () < ctx->config.max_fragments_cnt && ctx->players.empty ())
-      r.split();
+  if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
+      ctx->players.empty())
+    r.split();
   return r;
 }
 
