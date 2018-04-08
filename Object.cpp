@@ -35,3 +35,10 @@ Object to_object(const json &data) {
   }
   return {};
 }
+
+double Player::visibility_radius(int fragment_cnt) const {
+  if (fragment_cnt == 1)
+    return radius * constant::visibiliy_coeff;
+
+  return constant::fragments_visibiliy_coeff * radius * sqrt(fragment_cnt);
+}

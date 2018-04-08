@@ -9,7 +9,6 @@ class MyPart : public Player {
 public:
   explicit MyPart(const json &data);
   explicit MyPart() = default;
-  double visibility_radius(int fragment_cnt) const;
 
   MovingPoint as_moving_point() const;
   Point visibility_center() const { return pos + speed.normalized() * 10.0; }
