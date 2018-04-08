@@ -10,6 +10,25 @@
 
 MaxSpeedStrategy::MaxSpeedStrategy() : m_re(std::random_device()()) {}
 
+Response MaxSpeedStrategy::move_by_vector(const Point &v)
+{
+    auto &c = ctx->my_center;
+    auto C = -v.y * c.x + v.x * c.y;
+    double xl_int = v.x < 0.0 ? -C / -v.x : constant::infinity;
+    double yl_int = v.y < 0.0 ? -C / v.y : constant::infinity;
+    double xr_int = v.x > 0.0 ? (-C - v.y * ctx->config.game_width) / -v.x : constant::infinity;
+    double yr_int = v.y > 0.0  ? (-C + v.x * ctx->config.game_height) / v.y : constant::infinity;
+    if (xl_int >= 0.0 && xl_int <= ctx->config.game_height)
+        return Response{}.target({0., xl_int});
+    if (xr_int >= 0.0 && xr_int <= ctx->config.game_height)
+        return Response{}.target({ctx->config.game_width, xr_int});
+    if (yl_int >= 0.0 && yl_int <= ctx->config.game_width)
+        return Response{}.target({yl_int, 0.});
+    if (yr_int >= 0.0 && yr_int <= ctx->config.game_width)
+        return Response{}.target({yr_int, ctx->config.game_height});
+    return {};
+}
+
 Response MaxSpeedStrategy::speed_case() {
   double best_angle = 0.0;
   int best_angle_score = -std::numeric_limits<int>::min();
@@ -90,9 +109,7 @@ Response MaxSpeedStrategy::speed_case() {
       best_angle = angle;
     }
   }
-  auto r = Response{}.target(
-      ctx->my_center +
-      (ctx->avg_speed * Matrix::rotation(best_angle)).normalized() * 50.0);
+  auto r = move_by_vector (ctx->avg_speed * Matrix::rotation(best_angle));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       ctx->players.empty())
     r.split();
