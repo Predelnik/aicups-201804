@@ -2,6 +2,7 @@
 #include <cmath>
 #include <numeric>
 #include "Matrix.h"
+#include <tuple>
 
 bool Point::is_null() const { return fabs(x) < 1e-5 && fabs(y) < 1e-5; }
 
