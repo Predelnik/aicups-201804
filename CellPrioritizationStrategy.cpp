@@ -586,9 +586,9 @@ bool CellPrioritizationStrategy::try_run_away_from(const Point &enemy_pos) {
   double angle = 0;
   double angle_inc = constant::pi / 16;
   while (angle < constant::pi) {
-    if (try_point(ctx->my_center + vec * Matrix::rotation(angle)))
-      return true;
     if (try_point(ctx->my_center + vec * Matrix::rotation(-angle)))
+      return true;
+    if (try_point(ctx->my_center + vec * Matrix::rotation(angle)))
       return true;
     angle += angle_inc;
   }
