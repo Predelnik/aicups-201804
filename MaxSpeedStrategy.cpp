@@ -60,23 +60,28 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
         score += (enemy.pos.distance_to(next_mps[part_index].pos) - 3 * dist) * 500;
       }
   }
+  std::set<int> food_taken, ejection_taken;
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
-    std::set<int> food_taken;
-    for (int food_index = 0; food_index < m_food_seen.size(); ++food_index) {
-      if (food_taken.count(food_index))
-        continue;
-      for (int part_index = 0; part_index < ctx->my_parts.size();
-           ++part_index) {
-        if (next_mps[part_index].pos.squared_distance_to(
-                m_food_seen[food_index].pos) <
-            ctx->my_parts[part_index].radius) {
-          score += (future_scan_iteration_count - iteration) * 10 *
-                   ctx->config.food_mass;
-          food_taken.insert(food_index);
+    auto check_food_like = [this, &score, iteration](auto &arr, std::set<int> &taken, double mass)
+    {
+        for (int food_index = 0; food_index < arr.size(); ++food_index) {
+          if (taken.count(food_index))
+            continue;
+          for (int part_index = 0; part_index < ctx->my_parts.size();
+               ++part_index) {
+            if (next_mps[part_index].pos.squared_distance_to(
+                    arr[food_index].pos) <
+                ctx->my_parts[part_index].radius) {
+              score += (future_scan_iteration_count - iteration) * 10 *
+                       mass;
+              taken.insert(food_index);
+            }
+          }
         }
-      }
-    }
+    };
+    check_food_like (m_food_seen, food_taken, ctx->config.food_mass);
+    check_food_like (ctx->ejections, ejection_taken, constant::ejection_mass);
 
     std::set<int> players_taken;
     for (int player_index = 0; player_index < ctx->players.size();

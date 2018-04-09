@@ -15,4 +15,5 @@ namespace constant
   constexpr double min_split_mass = 120.0;
   constexpr double visibiliy_coeff = 4.0;
   constexpr double fragments_visibiliy_coeff = 2.5;
+  constexpr double ejection_mass = 15.0;
 }
