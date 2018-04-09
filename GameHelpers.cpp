@@ -63,7 +63,11 @@ bool can_eat(double eater_mass, double eatee_mass) {
 bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
              double eatee_mass, const Point &eatee_pos, double eatee_radius) {
   return can_eat(eater_mass, eatee_mass) &&
-         eater_pos.distance_to(eatee_pos) - eatee_radius +
-                 (2 * eatee_radius) * constant::interaction_dist_coeff <
-             eater_radius;
+         eater_pos.distance_to(eatee_pos) <
+             eating_distance(eater_radius, eatee_radius);
+}
+
+double eating_distance(double eater_radius, double eatee_radius) {
+  return eatee_radius + eater_radius -
+         (2 * eatee_radius) * constant::interaction_dist_coeff;
 }
