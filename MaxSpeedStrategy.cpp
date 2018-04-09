@@ -56,24 +56,27 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       score -= 100000.0 * ((r - y_to_wall) / r);
     for (auto &enemy : ctx->players)
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
-        auto dist =
+        auto eating_dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
-        score +=
-            (enemy.pos.distance_to(next_mps[part_index].pos) - 3 * dist) * 500;
+        auto dist = enemy.pos.distance_to(next_mps[part_index].pos);
+        if (dist < 6 * eating_dist)
+        {
+          score += (dist - 3 * eating_dist) * 500;
+        }
       }
   }
   std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
-    auto check_food_like = [this, &score, iteration](
-                               auto &arr, auto &taken, double mass) {
+    auto check_food_like = [this, &score, iteration](auto &arr, auto &taken,
+                                                     double mass) {
       for (int food_index = 0; food_index < arr.size(); ++food_index) {
         if (taken.count(food_index))
           continue;
         for (int part_index = 0; part_index < ctx->my_parts.size();
              ++part_index) {
-          if (next_mps[part_index].pos.squared_distance_to(
-                  arr[food_index].pos) < ctx->my_parts[part_index].radius) {
+          if (arr[food_index].pos.is_in_circle(
+                  next_mps[part_index].pos, ctx->my_parts[part_index].radius)) {
             score += (future_scan_iteration_count - iteration) * 10 * mass;
             taken.insert(food_index);
           }

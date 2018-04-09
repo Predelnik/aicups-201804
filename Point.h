@@ -65,6 +65,8 @@ public:
     return *this;
   }
 
+  bool is_in_circle (const Point &center, double radius) const;
+
   double squared_distance_to(const Point &other) const;
   double squared_length() const;
   double angle() const;
