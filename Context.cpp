@@ -27,6 +27,9 @@ void Context::update(const json &data) {
       my_parts.begin(), my_parts.end(),
       [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   fill_objects(data["Objects"]);
+  std::sort(
+      players.begin(), players.end(),
+      [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   update_caches();
 }
 

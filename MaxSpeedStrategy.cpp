@@ -161,7 +161,7 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   r.debug("Score: " + std::to_string(best_angle_score));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
-      ctx->players.empty())
+      (ctx->players.empty() || ctx->players.front ().mass < 0.5 * ctx->my_parts.back ().mass))
     r.split();
 #ifdef CUSTOM_DEBUG
 #if 0
