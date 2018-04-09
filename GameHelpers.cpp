@@ -63,8 +63,7 @@ bool can_eat(double eater_mass, double eatee_mass) {
 bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
              double eatee_mass, const Point &eatee_pos, double eatee_radius) {
   return can_eat(eater_mass, eatee_mass) &&
-         eater_pos.distance_to(eatee_pos) <
-             eating_distance(eater_radius, eatee_radius);
+         eatee_pos.is_in_circle(eater_pos, eating_distance(eater_radius, eatee_radius));
 }
 
 double eating_distance(double eater_radius, double eatee_radius) {
@@ -82,5 +81,5 @@ bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
 
   auto dangerous_dist =
       config.virus_radius * constant::virus_hurt_factor + radius;
-  return pos.squared_distance_to(virus_pos) < dangerous_dist;
+  return pos.is_in_circle(virus_pos, dangerous_dist);
 }
