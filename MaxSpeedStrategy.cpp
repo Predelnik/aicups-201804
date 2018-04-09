@@ -45,7 +45,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
     next_mps[part_index] = next_moving_point(
         mps[part_index], ctx->my_parts[part_index].mass, accel, 1, ctx->config);
-    auto r = max_speed_circle_radius(ctx->my_parts[part_index], ctx->config);
+    auto r = ctx->max_speed_circle_radii[part_index];
     auto x_to_wall = x_distance_to_wall(
         next_mps[part_index], ctx->my_parts[part_index].radius, ctx->config);
     if (x_to_wall < r)

@@ -4,6 +4,7 @@
 #include "overload.h"
 
 #include "algorithm.h"
+#include "GameHelpers.h"
 #include <variant>
 
 namespace {
@@ -86,6 +87,13 @@ void Context::update_food_map() {
     food_map.insert({f.pos, &f});
 }
 
+void Context::update_max_speed_circle_radii()
+{
+    max_speed_circle_radii.resize (my_parts.size ());
+    for (int i = 0; i < my_parts.size (); ++i)
+        max_speed_circle_radii[i] = max_speed_circle_radius (my_parts[i], config);
+}
+
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
@@ -93,6 +101,7 @@ void Context::update_caches() {
   update_largest_part();
   update_speed_data();
   update_food_map();
+  update_max_speed_circle_radii ();
 }
 
 void Context::update_my_center() {

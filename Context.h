@@ -26,6 +26,7 @@ private:
   void update_largest_part();
   void update_speed_data();
   void update_food_map();
+  void update_max_speed_circle_radii();
   void update_caches();
   void update_my_center();
 
@@ -36,6 +37,8 @@ public:
   std::vector<Ejection> ejections;
   std::vector<Player> players;
   std::vector<Virus> viruses;
+
+  std::vector<double> max_speed_circle_radii;
 
   std::multimap<Point, Food*> food_map;
 
