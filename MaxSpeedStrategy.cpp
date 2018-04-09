@@ -55,7 +55,9 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       score -= 100000.0 * ((r - y_to_wall) / r);
     for (auto &enemy : ctx->players)
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
-        score += 100 * enemy.pos.distance_to(next_mps[part_index].pos);
+        auto dist =
+            eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
+        score += (enemy.pos.distance_to(next_mps[part_index].pos) - 3 * dist) * 500;
       }
   }
   for (int iteration = 0; iteration < future_scan_iteration_count;
@@ -132,6 +134,7 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
     return get_response_impl(false); // desperate times - desperate measures
   }
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
+  r.debug("Score: " + std::to_string(best_angle_score));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       ctx->players.empty())
     r.split();
