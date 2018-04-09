@@ -7,6 +7,7 @@
 #include "MyPart.h"
 #include "Response.h"
 #include <set>
+#include <unordered_set>
 
 MaxSpeedStrategy::MaxSpeedStrategy()
     : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
@@ -57,31 +58,47 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
         auto dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
-        score += (enemy.pos.distance_to(next_mps[part_index].pos) - 3 * dist) * 500;
+        score +=
+            (enemy.pos.distance_to(next_mps[part_index].pos) - 3 * dist) * 500;
       }
   }
-  std::set<int> food_taken, ejection_taken;
+  std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
-    auto check_food_like = [this, &score, iteration](auto &arr, std::set<int> &taken, double mass)
-    {
-        for (int food_index = 0; food_index < arr.size(); ++food_index) {
-          if (taken.count(food_index))
-            continue;
-          for (int part_index = 0; part_index < ctx->my_parts.size();
-               ++part_index) {
-            if (next_mps[part_index].pos.squared_distance_to(
-                    arr[food_index].pos) <
-                ctx->my_parts[part_index].radius) {
-              score += (future_scan_iteration_count - iteration) * 10 *
-                       mass;
-              taken.insert(food_index);
-            }
+    auto check_food_like = [this, &score, iteration](
+                               auto &arr, auto &taken, double mass) {
+      for (int food_index = 0; food_index < arr.size(); ++food_index) {
+        if (taken.count(food_index))
+          continue;
+        for (int part_index = 0; part_index < ctx->my_parts.size();
+             ++part_index) {
+          if (next_mps[part_index].pos.squared_distance_to(
+                  arr[food_index].pos) < ctx->my_parts[part_index].radius) {
+            score += (future_scan_iteration_count - iteration) * 10 * mass;
+            taken.insert(food_index);
           }
         }
+      }
     };
-    check_food_like (m_food_seen, food_taken, ctx->config.food_mass);
-    check_food_like (ctx->ejections, ejection_taken, constant::ejection_mass);
+    check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
+    check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
+    if (!ctx->players.empty()) {
+      for (int virus_index = 0; virus_index < ctx->viruses.size();
+           ++virus_index) {
+        if (virus_bumped.count(virus_index))
+          continue;
+        for (int part_index = 0; part_index < ctx->my_parts.size();
+             ++part_index) {
+          if (is_virus_dangerous_for(ctx->config, ctx->viruses[virus_index].pos,
+                                     next_mps[part_index].pos,
+                                     ctx->my_parts[part_index].radius,
+                                     ctx->my_parts[part_index].mass)) {
+            score -= (future_scan_iteration_count - iteration) * 300;
+            virus_bumped.insert(virus_index);
+          }
+        }
+      }
+    }
 
     std::set<int> players_taken;
     for (int player_index = 0; player_index < ctx->players.size();

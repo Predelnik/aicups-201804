@@ -20,4 +20,7 @@ bool can_eat(double eater_mass, double eatee_mass);
 bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
              double eatee_mass, const Point &eatee_pos, double eatee_radius);
 
-double eating_distance (double eater_radius, double eatee_radius);
+double eating_distance(double eater_radius, double eatee_radius);
+
+bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
+                            const Point &pos, double radius, double mass);
