@@ -56,6 +56,12 @@ double y_distance_to_wall(const MovingPoint &mp, double radius,
   return dist;
 }
 
+double distance_to_nearest_wall(const Point &p, const GameConfig &config) {
+  return std::min({std::abs(p.x), std::abs(p.y),
+                   std::abs(config.game_width - p.x),
+                   std::abs(config.game_height - p.y)});
+}
+
 bool can_eat(double eater_mass, double eatee_mass) {
   return eater_mass >= eatee_mass * constant::eating_mass_coeff;
 }
@@ -63,7 +69,8 @@ bool can_eat(double eater_mass, double eatee_mass) {
 bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
              double eatee_mass, const Point &eatee_pos, double eatee_radius) {
   return can_eat(eater_mass, eatee_mass) &&
-         eatee_pos.is_in_circle(eater_pos, eating_distance(eater_radius, eatee_radius));
+         eatee_pos.is_in_circle(eater_pos,
+                                eating_distance(eater_radius, eatee_radius));
 }
 
 double eating_distance(double eater_radius, double eatee_radius) {

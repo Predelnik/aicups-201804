@@ -43,15 +43,21 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   static std::vector<MovingPoint> next_mps;
   next_mps.resize(ctx->my_parts.size());
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
-    next_mps[part_index] = next_moving_point(
-        mps[part_index], ctx->my_parts[part_index].mass, accel, 1, ctx->config);
+    auto &mp = next_mps[part_index];
+    mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
+                           accel, 1, ctx->config);
+
+    score += 100. * distance_to_nearest_wall(mp.pos, ctx->config) /
+             (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
+             ctx->my_parts.size();
+
     auto r = ctx->max_speed_circle_radii[part_index];
-    auto x_to_wall = x_distance_to_wall(
-        next_mps[part_index], ctx->my_parts[part_index].radius, ctx->config);
+    auto x_to_wall =
+        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
     if (x_to_wall < r)
       score -= 100000.0 * ((r - x_to_wall) / r);
-    auto y_to_wall = y_distance_to_wall(
-        next_mps[part_index], ctx->my_parts[part_index].radius, ctx->config);
+    auto y_to_wall =
+        y_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
     if (y_to_wall < r)
       score -= 100000.0 * ((r - y_to_wall) / r);
     for (auto &enemy : ctx->players)
@@ -59,8 +65,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
         auto eating_dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
         auto dist = enemy.pos.distance_to(next_mps[part_index].pos);
-        if (dist < 6 * eating_dist)
-        {
+        if (dist < 6 * eating_dist) {
           score += (dist - 3 * eating_dist) * 500;
         }
       }
@@ -161,7 +166,8 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   r.debug("Score: " + std::to_string(best_angle_score));
   if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
-      (ctx->players.empty() || ctx->players.front ().mass < 0.5 * ctx->my_parts.back ().mass))
+      (ctx->players.empty() ||
+       ctx->players.front().mass < 0.5 * ctx->my_parts.back().mass))
     r.split();
 #ifdef CUSTOM_DEBUG
 #if 0

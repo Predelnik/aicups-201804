@@ -15,6 +15,7 @@ double x_distance_to_wall(const MovingPoint &mp, double radius,
                           const GameConfig &config);
 double y_distance_to_wall(const MovingPoint &mp, double radius,
                           const GameConfig &config);
+double distance_to_nearest_wall(const Point &p, const GameConfig &config);
 
 bool can_eat(double eater_mass, double eatee_mass);
 bool can_eat(double eater_mass, const Point &eater_pos, double eater_radius,
