@@ -71,3 +71,16 @@ double eating_distance(double eater_radius, double eatee_radius) {
   return eatee_radius + eater_radius -
          (2 * eatee_radius) * constant::interaction_dist_coeff;
 }
+
+bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
+                            const Point &pos, double radius, double mass) {
+  if (mass < constant::virus_danger_mass)
+    return false;
+
+  if (config.virus_radius < radius)
+    return false;
+
+  auto dangerous_dist =
+      config.virus_radius * constant::virus_hurt_factor + radius;
+  return pos.squared_distance_to(virus_pos) < dangerous_dist;
+}

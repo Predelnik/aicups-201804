@@ -16,4 +16,5 @@ namespace constant
   constexpr double visibiliy_coeff = 4.0;
   constexpr double fragments_visibiliy_coeff = 2.5;
   constexpr double ejection_mass = 15.0;
+  constexpr double virus_hurt_factor = 2./.3;
 }
