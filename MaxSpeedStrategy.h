@@ -24,6 +24,7 @@ public:
 private:
   Response move_by_vector(const Point &v);
   double calc_angle_score(double angle);
+  bool is_splitting_dangerous() const;
   Response get_response_impl(bool try_to_keep_speed);
   Response speed_case();
   Response no_speed_case();

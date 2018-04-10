@@ -38,7 +38,7 @@ public:
   std::vector<Player> players;
   std::vector<Virus> viruses;
 
-  std::vector<double> max_speed_circle_radii;
+  std::vector<double> sustainable_circle_radii;
 
   std::multimap<Point, Food*> food_map;
 
