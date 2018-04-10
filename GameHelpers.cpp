@@ -5,10 +5,10 @@
 #include "MovingPoint.h"
 #include "MyPart.h"
 
-double max_speed_circle_radius(const Player &player, const GameConfig &config) {
-  MovingPoint mp{{0, 0}, {player.max_speed(config), 0}};
+double sustainable_circle_radius(const MyPart& part, const GameConfig &config) {
+  MovingPoint mp{{0, 0}, {part.speed.length(), 0}};
   auto mp1 = mp;
-  auto mp2 = next_moving_point(mp, player.mass,
+  auto mp2 = next_moving_point(mp, part.mass,
                                mp.speed * Matrix::rotation(-constant::pi / 2.0),
                                1, config);
   auto alpha = -mp2.speed.angle();
