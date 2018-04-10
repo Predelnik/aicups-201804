@@ -36,9 +36,12 @@ private:
 private:
   std::deque<FoodSeen> m_food_seen;
   std::multiset<Point> m_food_seen_set;
+#ifdef CUSTOM_DEBUG
+  std::vector<std::array<Point, 2>> m_debug_lines;
+#endif;
 
   constexpr static int food_shelf_life = 350;
-  constexpr static int angle_discretization = DEBUG_RELEASE_VALUE(20, 40);
+  constexpr static int angle_discretization = DEBUG_RELEASE_VALUE(10, 20);
   constexpr static int future_scan_iteration_count =
       DEBUG_RELEASE_VALUE(10, 20);
   const Context *ctx;

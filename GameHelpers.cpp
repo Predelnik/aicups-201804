@@ -83,7 +83,7 @@ bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
   if (mass < constant::virus_danger_mass)
     return false;
 
-  if (config.virus_radius < radius)
+  if (config.virus_radius > radius)
     return false;
 
   auto dangerous_dist =
