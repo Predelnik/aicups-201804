@@ -89,9 +89,9 @@ void Context::update_food_map() {
 
 void Context::update_max_speed_circle_radii()
 {
-    max_speed_circle_radii.resize (my_parts.size ());
+    sustainable_circle_radii.resize (my_parts.size ());
     for (int i = 0; i < my_parts.size (); ++i)
-        max_speed_circle_radii[i] = sustainable_circle_radius (my_parts[i], config);
+        sustainable_circle_radii[i] = sustainable_circle_radius (my_parts[i], config);
 }
 
 void Context::update_caches() {

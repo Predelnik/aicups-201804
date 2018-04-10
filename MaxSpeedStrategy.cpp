@@ -52,7 +52,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
 
-    auto r = ctx->max_speed_circle_radii[part_index];
+    auto r = ctx->sustainable_circle_radii[part_index];
     auto x_to_wall =
         x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
     if (x_to_wall < r)
@@ -97,7 +97,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     };
     check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
     check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
-    if (!ctx->players.empty()) {
+    if (!ctx->players.empty() || is_splitting_dangerous ()) {
       for (int virus_index = 0; virus_index < ctx->viruses.size();
            ++virus_index) {
         if (virus_bumped.count(virus_index))
@@ -107,7 +107,8 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
                                      next_mps[part_index].pos,
                                      ctx->my_parts[part_index].radius,
                                      ctx->my_parts[part_index].mass)) {
-            score -= (future_scan_iteration_count - iteration) * 300;
+            const double score_per_virus = is_splitting_dangerous() ? 750 : 300;
+            score -= (future_scan_iteration_count - iteration) * score_per_virus;
             virus_bumped.insert(virus_index);
           }
         }
@@ -140,6 +141,11 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   return score;
 }
 
+bool MaxSpeedStrategy::is_splitting_dangerous() const
+{
+    return ctx->config.inertia_factor < 4.0;
+}
+
 Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   double best_angle = 0.0;
   double best_angle_score = -std::numeric_limits<int>::min();
@@ -170,9 +176,9 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   }
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   r.debug("Score: " + std::to_string(best_angle_score));
-  if (ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
+  if (!is_splitting_dangerous () && ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       (ctx->players.empty() ||
-       ctx->players.front().mass < 0.5 * ctx->my_parts.back().mass))
+       ctx->players.front().mass < 0.5 * ctx->my_parts.front().mass))
     r.split();
 #ifdef CUSTOM_DEBUG
 #if 0
