@@ -42,6 +42,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
                  [](const MyPart &p) { return p.as_moving_point(); });
   static std::vector<MovingPoint> next_mps;
   next_mps.resize(ctx->my_parts.size());
+  std::set<int> eaten_parts;
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
     auto &mp = next_mps[part_index];
     mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
@@ -68,8 +69,15 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
         if (dist < 6 * eating_dist) {
           score += (dist - 3 * eating_dist) * 500;
         }
+        if (dist < 2 * eating_dist)
+            eaten_parts.insert (part_index); // what is eaten could never eat
       }
   }
+  static std::vector<int> alive_parts;
+  alive_parts.clear ();
+  for (int i = 0; i < ctx->my_parts.size(); ++i)
+      if (!eaten_parts.count (i))
+          alive_parts.push_back(i);
   std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
@@ -78,8 +86,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       for (int food_index = 0; food_index < arr.size(); ++food_index) {
         if (taken.count(food_index))
           continue;
-        for (int part_index = 0; part_index < ctx->my_parts.size();
-             ++part_index) {
+        for (auto part_index : alive_parts) {
           if (arr[food_index].pos.is_in_circle(
                   next_mps[part_index].pos, ctx->my_parts[part_index].radius)) {
             score += (future_scan_iteration_count - iteration) * 10 * mass;
@@ -95,8 +102,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
            ++virus_index) {
         if (virus_bumped.count(virus_index))
           continue;
-        for (int part_index = 0; part_index < ctx->my_parts.size();
-             ++part_index) {
+        for (auto part_index : alive_parts) {
           if (is_virus_dangerous_for(ctx->config, ctx->viruses[virus_index].pos,
                                      next_mps[part_index].pos,
                                      ctx->my_parts[part_index].radius,
@@ -113,8 +119,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
          ++player_index) {
       if (players_taken.count(player_index))
         continue;
-      for (int part_index = 0; part_index < ctx->my_parts.size();
-           ++part_index) {
+      for (auto part_index : alive_parts) {
         auto &enemy = ctx->players[player_index];
         auto &p = ctx->my_parts[part_index];
         if (can_eat(p.mass, next_mps[part_index].pos, p.radius, enemy.mass,
@@ -125,7 +130,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       }
     }
 
-    for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
+    for (auto part_index : alive_parts) {
       next_mps[part_index] = next_moving_point(next_mps[part_index],
                                                ctx->my_parts[part_index].mass,
                                                accel, 1, ctx->config);
