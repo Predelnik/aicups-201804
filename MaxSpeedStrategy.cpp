@@ -34,6 +34,10 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
 
 double MaxSpeedStrategy::calc_angle_score(double angle) {
   auto accel = (Point(1., 0.) * Matrix::rotation(angle));
+  if (ctx->my_parts.empty())
+    return 0.0;
+  int scan_precision = static_cast<int>(
+      std::max(10.0 / ctx->my_parts.back().max_speed(ctx->config), 1.0));
 
   double score = 0;
   static std::vector<MovingPoint> mps;
@@ -46,9 +50,9 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
     auto &mp = next_mps[part_index];
     mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
-                           accel, 1, ctx->config);
+                           accel, scan_precision, ctx->config);
 
-    score += 100. * distance_to_nearest_wall(mp.pos, ctx->config) /
+    score += 300. * distance_to_nearest_wall(mp.pos, ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
 
@@ -70,14 +74,14 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
           score += (dist - 3 * eating_dist) * 500;
         }
         if (dist < 2 * eating_dist)
-            eaten_parts.insert (part_index); // what is eaten could never eat
+          eaten_parts.insert(part_index); // what is eaten could never eat
       }
   }
   static std::vector<int> alive_parts;
-  alive_parts.clear ();
+  alive_parts.clear();
   for (int i = 0; i < ctx->my_parts.size(); ++i)
-      if (!eaten_parts.count (i))
-          alive_parts.push_back(i);
+    if (!eaten_parts.count(i))
+      alive_parts.push_back(i);
   std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
@@ -97,7 +101,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     };
     check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
     check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
-    if (!ctx->players.empty() || is_splitting_dangerous ()) {
+    if (!ctx->players.empty() || is_splitting_dangerous()) {
       for (int virus_index = 0; virus_index < ctx->viruses.size();
            ++virus_index) {
         if (virus_bumped.count(virus_index))
@@ -107,8 +111,10 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
                                      next_mps[part_index].pos,
                                      ctx->my_parts[part_index].radius,
                                      ctx->my_parts[part_index].mass)) {
-            const double score_per_virus = is_splitting_dangerous() ? 750 : 300;
-            score -= (future_scan_iteration_count - iteration) * score_per_virus;
+            const double score_per_virus =
+                is_splitting_dangerous() ? 10000 : 300;
+            score -=
+                (future_scan_iteration_count - iteration) * score_per_virus;
             virus_bumped.insert(virus_index);
           }
         }
@@ -132,18 +138,24 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     }
 
     for (auto part_index : alive_parts) {
-      next_mps[part_index] = next_moving_point(next_mps[part_index],
-                                               ctx->my_parts[part_index].mass,
-                                               accel, 1, ctx->config);
+#if 0 && defined CUSTOM_DEBUG
+      m_debug_lines.emplace_back();
+      m_debug_lines.back()[0] = next_mps[part_index].pos;
+#endif
+      next_mps[part_index] = next_moving_point(
+          next_mps[part_index], ctx->my_parts[part_index].mass, accel,
+          scan_precision, ctx->config);
+#if 0 && defined CUSTOM_DEBUG
+      m_debug_lines.back()[1] = next_mps[part_index].pos;
+#endif
     }
   }
   score += std::uniform_real_distribution<double>(0, 100)(m_re);
   return score;
 }
 
-bool MaxSpeedStrategy::is_splitting_dangerous() const
-{
-    return ctx->config.inertia_factor < 4.0;
+bool MaxSpeedStrategy::is_splitting_dangerous() const {
+  return ctx->config.inertia_factor < 4.0;
 }
 
 Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
@@ -176,16 +188,17 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   }
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   r.debug("Score: " + std::to_string(best_angle_score));
-  if (!is_splitting_dangerous () && ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
+  if (!is_splitting_dangerous() &&
+      ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       (ctx->players.empty() ||
        ctx->players.front().mass < 0.5 * ctx->my_parts.front().mass))
     r.split();
 #ifdef CUSTOM_DEBUG
 #if 0
   for (auto &f : m_food_seen)
-    lines.push_back({ctx->my_center, f.pos});
+    m_debug_lines.push_back({ctx->my_center, f.pos});
 #endif
-  r.debug_lines(lines);
+  r.debug_lines(m_debug_lines);
 #endif
   return r;
 }
@@ -235,6 +248,9 @@ void MaxSpeedStrategy::update() {
 
 Response MaxSpeedStrategy::get_response(const Context &context) {
   ctx = &context;
+#ifdef CUSTOM_DEBUG
+  m_debug_lines.clear();
+#endif
   update();
 
   return get_response_impl(true);
