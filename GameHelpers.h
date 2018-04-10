@@ -6,7 +6,7 @@ class GameConfig;
 class MovingPoint;
 class Point;
 
-double max_speed_circle_radius(const Player &player, const GameConfig &config);
+double sustainable_circle_radius(const MyPart& part, const GameConfig &config);
 MovingPoint next_moving_point(MovingPoint moving_point, double mass,
                               const Point &acceleration, int ticks,
                               const GameConfig &config);
