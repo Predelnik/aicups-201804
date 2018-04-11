@@ -9,6 +9,10 @@
 #include <set>
 #include <unordered_set>
 
+#ifdef CUSTOM_DEBUG
+#define DEBUG_FUTURE_OUTCOMES 1
+#endif
+
 MaxSpeedStrategy::MaxSpeedStrategy()
     : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
 
@@ -56,9 +60,13 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
 
-    auto r = ctx->sustainable_circle_radii[part_index];
+    auto r = ctx->max_speed_circle_radii[part_index];
+    double speed_discount = ctx->my_parts[part_index].speed.length() /
+                            ctx->my_parts[part_index].max_speed(ctx->config);
     auto x_to_wall =
-        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
+        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config)
+        ;
+    r *= speed_discount;
     if (x_to_wall < r)
       score -= 100000.0 * ((r - x_to_wall) / r);
     auto y_to_wall =
@@ -138,19 +146,38 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     }
 
     for (auto part_index : alive_parts) {
-#if 0 && defined CUSTOM_DEBUG
+#if DEBUG_FUTURE_OUTCOMES
+        if (iteration == 0)
+        {
       m_debug_lines.emplace_back();
       m_debug_lines.back()[0] = next_mps[part_index].pos;
+        }
 #endif
       next_mps[part_index] = next_moving_point(
           next_mps[part_index], ctx->my_parts[part_index].mass, accel,
           scan_precision, ctx->config);
-#if 0 && defined CUSTOM_DEBUG
+#if DEBUG_FUTURE_OUTCOMES
+        if (iteration == 0)
       m_debug_lines.back()[1] = next_mps[part_index].pos;
 #endif
     }
   }
   score += std::uniform_real_distribution<double>(0, 100)(m_re);
+#if DEBUG_FUTURE_OUTCOMES
+  auto s = m_debug_line_colors.size();
+  m_debug_line_colors.resize(m_debug_lines.size());
+  using namespace std::string_literals;
+
+  auto to_hex = [](int x) {
+    std::stringstream stream;
+    stream << std::hex << std::setfill('0') << std::setw(2) << x;
+    return stream.str();
+  };
+  std::fill(
+      m_debug_line_colors.begin() + s, m_debug_line_colors.end(),
+      "#"s + to_hex(std::clamp(0, static_cast<int>(-score), 255)) +
+          to_hex(std::clamp(0, static_cast<int>(score / 10.), 255)) + "00");
+#endif
   return score;
 }
 
@@ -159,11 +186,12 @@ bool MaxSpeedStrategy::is_splitting_dangerous() const {
 }
 
 Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
+#ifdef DEBUG_FUTURE_OUTCOMES
+  m_debug_lines.clear();
+  m_debug_line_colors.clear();
+#endif
   double best_angle = 0.0;
   double best_angle_score = -std::numeric_limits<int>::min();
-#ifdef CUSTOM_DEBUG
-  std::vector<std::array<Point, 2>> lines;
-#endif
 
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
@@ -198,7 +226,7 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
   for (auto &f : m_food_seen)
     m_debug_lines.push_back({ctx->my_center, f.pos});
 #endif
-  r.debug_lines(m_debug_lines);
+  r.debug_lines(m_debug_lines).debug_line_colors(m_debug_line_colors);
 #endif
   return r;
 }

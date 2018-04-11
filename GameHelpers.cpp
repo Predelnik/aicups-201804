@@ -5,8 +5,8 @@
 #include "MovingPoint.h"
 #include "MyPart.h"
 
-double sustainable_circle_radius(const MyPart& part, const GameConfig &config) {
-  MovingPoint mp{{0, 0}, {part.speed.length(), 0}};
+double max_speed_circle_radius(const MyPart& part, const GameConfig &config) {
+  MovingPoint mp{{0, 0}, {part.max_speed(config), 0}};
   auto mp1 = mp;
   auto mp2 = next_moving_point(mp, part.mass,
                                mp.speed * Matrix::rotation(-constant::pi / 2.0),
@@ -60,6 +60,12 @@ double distance_to_nearest_wall(const Point &p, const GameConfig &config) {
   return std::min({std::abs(p.x), std::abs(p.y),
                    std::abs(config.game_width - p.x),
                    std::abs(config.game_height - p.y)});
+}
+
+double distance_to_nearest_wall(const Point &p, double radius, const GameConfig &config) {
+  return std::min({std::abs(p.x - radius), std::abs(p.y - radius),
+                   std::abs(config.game_width - p.x - radius),
+                   std::abs(config.game_height - p.y - radius)});
 }
 
 bool can_eat(double eater_mass, double eatee_mass) {

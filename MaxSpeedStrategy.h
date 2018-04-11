@@ -38,6 +38,7 @@ private:
   std::multiset<Point> m_food_seen_set;
 #ifdef CUSTOM_DEBUG
   std::vector<std::array<Point, 2>> m_debug_lines;
+  std::vector<std::string> m_debug_line_colors;
 #endif;
 
   constexpr static int food_shelf_life = 350;
