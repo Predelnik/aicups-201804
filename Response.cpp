@@ -5,6 +5,12 @@ Response::Self &Response::debug_lines(std::vector<std::array<Point, 2>> lines) {
   return *this;
 }
 
+Response::Self &
+Response::debug_line_colors(std::vector<std::string> line_colors) {
+  m_debug_line_colors = std::move(line_colors);
+  return *this;
+}
+
 json Response::to_json() const {
   json out;
   out["X"] = m_pos.x;
@@ -16,12 +22,16 @@ json Response::to_json() const {
     out["Eject"] = true;
 #if CUSTOM_DEBUG
   {
-    std::vector<std::map<std::string, double>> lines;
-    for (auto line : m_debug_lines)
-      lines.push_back({{"X1", line[0].x},
-                       {"Y1", line[0].y},
-                       {"X2", line[1].x},
-                       {"Y2", line[1].y}});
+    std::vector<json> lines(m_debug_lines.size());
+    for (int i = 0; i < m_debug_lines.size(); ++i) {
+      json &obj = lines[i];
+      obj["X1"] = m_debug_lines[i][0].x;
+      obj["Y1"] = m_debug_lines[i][0].y;
+      obj["X2"] = m_debug_lines[i][1].x;
+      obj["Y2"] = m_debug_lines[i][1].y;
+      if (!m_debug_line_colors.empty())
+        obj["Color"] = m_debug_line_colors[i];
+    }
     out["DebugLines"] = lines;
   }
 #endif // CUSTOM_DEBUG
