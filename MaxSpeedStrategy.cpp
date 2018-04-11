@@ -64,8 +64,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     double speed_discount = ctx->my_parts[part_index].speed.length() /
                             ctx->my_parts[part_index].max_speed(ctx->config);
     auto x_to_wall =
-        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config)
-        ;
+        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
     r *= speed_discount;
     if (x_to_wall < r)
       score -= 100000.0 * ((r - x_to_wall) / r);
@@ -79,7 +78,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
         auto dist = enemy.pos.distance_to(next_mps[part_index].pos);
         if (dist < 6 * eating_dist) {
-          score += (dist - 3 * eating_dist) * 500;
+          score -= (6 * eating_dist - dist) * 100;
         }
         if (dist < 2 * eating_dist)
           eaten_parts.insert(part_index); // what is eaten could never eat
@@ -147,17 +146,13 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
 
     for (auto part_index : alive_parts) {
 #if DEBUG_FUTURE_OUTCOMES
-        if (iteration == 0)
-        {
       m_debug_lines.emplace_back();
       m_debug_lines.back()[0] = next_mps[part_index].pos;
-        }
 #endif
       next_mps[part_index] = next_moving_point(
           next_mps[part_index], ctx->my_parts[part_index].mass, accel,
           scan_precision, ctx->config);
 #if DEBUG_FUTURE_OUTCOMES
-        if (iteration == 0)
       m_debug_lines.back()[1] = next_mps[part_index].pos;
 #endif
     }
@@ -173,10 +168,10 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     stream << std::hex << std::setfill('0') << std::setw(2) << x;
     return stream.str();
   };
-  std::fill(
-      m_debug_line_colors.begin() + s, m_debug_line_colors.end(),
-      "#"s + to_hex(std::clamp(0, static_cast<int>(-score), 255)) +
-          to_hex(std::clamp(0, static_cast<int>(score / 10.), 255)) + "00");
+  std::fill(m_debug_line_colors.begin() + s, m_debug_line_colors.end(),
+            "#"s + to_hex(std::clamp(0, static_cast<int>(-score), 255)) +
+                to_hex(std::clamp(0, static_cast<int>(score / 10.), 255)) +
+                "00");
 #endif
   return score;
 }
