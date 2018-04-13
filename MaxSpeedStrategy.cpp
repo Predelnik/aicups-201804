@@ -52,9 +52,16 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   next_mps.resize(ctx->my_parts.size());
   std::set<int> eaten_parts;
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
+    auto cur_speed = ctx->my_parts[part_index].speed.length();
+    auto max_speed_diff = cur_speed / max_speed (ctx->my_parts[part_index].mass, ctx->config);
     auto &mp = next_mps[part_index];
     mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
                            accel, scan_precision, ctx->config);
+    auto speed_loss = (cur_speed - mp.speed.length()) / cur_speed;
+    if (speed_loss > 0.1)
+        score -= (speed_loss * 50000.0);
+    else if (speed_loss > 0.0 && max_speed_diff < 0.7)
+        score -= 50000.0;
 
     score += 300. * distance_to_nearest_wall(mp.pos, ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
@@ -180,7 +187,7 @@ bool MaxSpeedStrategy::is_splitting_dangerous() const {
   return ctx->config.inertia_factor < 4.0;
 }
 
-Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
+Response MaxSpeedStrategy::get_response_impl() {
 #ifdef DEBUG_FUTURE_OUTCOMES
   m_debug_lines.clear();
   m_debug_line_colors.clear();
@@ -190,11 +197,6 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
 
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
-  if (try_to_keep_speed && ctx->avg_speed.squared_length() > 1e-5) {
-    auto sp_angle = ctx->avg_speed.angle();
-    min_angle = sp_angle - constant::pi / 2.;
-    max_angle = sp_angle + constant::pi / 2.;
-  }
 
   for (int angle_try = 0; angle_try <= angle_discretization; ++angle_try) {
     double angle =
@@ -205,9 +207,6 @@ Response MaxSpeedStrategy::get_response_impl(bool try_to_keep_speed) {
       best_angle_score = score;
       best_angle = angle;
     }
-  }
-  if (best_angle_score < 0.0 && try_to_keep_speed) {
-    return get_response_impl(false); // desperate times - desperate measures
   }
   auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
   r.debug("Score: " + std::to_string(best_angle_score));
@@ -276,7 +275,7 @@ Response MaxSpeedStrategy::get_response(const Context &context) {
 #endif
   update();
 
-  return get_response_impl(true);
+  return get_response_impl();
 }
 
 void MaxSpeedStrategy::initialize(const GameConfig &config) {}

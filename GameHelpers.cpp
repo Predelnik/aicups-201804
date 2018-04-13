@@ -57,15 +57,15 @@ double y_distance_to_wall(const MovingPoint &mp, double radius,
 }
 
 double distance_to_nearest_wall(const Point &p, const GameConfig &config) {
-  return std::min({std::abs(p.x), std::abs(p.y),
-                   std::abs(config.game_width - p.x),
-                   std::abs(config.game_height - p.y)});
+  return std::min({std::max(p.x, 0.0), std::max(p.y, 0.0),
+                   std::max(config.game_width - p.x, 0.0),
+                   std::max(config.game_height - p.y, 0.0)});
 }
 
 double distance_to_nearest_wall(const Point &p, double radius, const GameConfig &config) {
-  return std::min({std::abs(p.x - radius), std::abs(p.y - radius),
-                   std::abs(config.game_width - p.x - radius),
-                   std::abs(config.game_height - p.y - radius)});
+  return std::min({std::max(p.x - radius, 0.0), std::max(p.y - radius, 0.0),
+                   std::max(config.game_width - p.x - radius, 0.0),
+                   std::max(config.game_height - p.y - radius, 0.0)});
 }
 
 bool can_eat(double eater_mass, double eatee_mass) {

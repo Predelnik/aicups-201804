@@ -25,7 +25,7 @@ private:
   Response move_by_vector(const Point &v);
   double calc_angle_score(double angle);
   bool is_splitting_dangerous() const;
-  Response get_response_impl(bool try_to_keep_speed);
+  Response get_response_impl();
   Response speed_case();
   Response no_speed_case();
   void remove_eaten_food();
@@ -42,7 +42,7 @@ private:
 #endif;
 
   constexpr static int food_shelf_life = 350;
-  constexpr static int angle_discretization = DEBUG_RELEASE_VALUE(10, 20);
+  constexpr static int angle_discretization = DEBUG_RELEASE_VALUE(20, 40);
   constexpr static int future_scan_iteration_count =
       DEBUG_RELEASE_VALUE(10, 20);
   const Context *ctx;
