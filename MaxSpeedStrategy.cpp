@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 #ifdef CUSTOM_DEBUG
-#define DEBUG_FUTURE_OUTCOMES 1
+#define DEBUG_FUTURE_OUTCOMES 0
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
@@ -53,32 +53,35 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   std::set<int> eaten_parts;
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
-    auto max_speed_diff = cur_speed / max_speed (ctx->my_parts[part_index].mass, ctx->config);
+    auto max_speed_diff =
+        cur_speed / max_speed(ctx->my_parts[part_index].mass, ctx->config);
     auto &mp = next_mps[part_index];
     mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
                            accel, scan_precision, ctx->config);
     auto speed_loss = (cur_speed - mp.speed.length()) / cur_speed;
     if (speed_loss > 0.1)
-        score -= (speed_loss * 50000.0);
+      score -= (speed_loss * 50000.0);
     else if (speed_loss > 0.0 && max_speed_diff < 0.7)
-        score -= 50000.0;
+      score -= 50000.0;
 
     score += 300. * distance_to_nearest_wall(mp.pos, ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
 
-    auto r = ctx->max_speed_circle_radii[part_index];
-    double speed_discount = ctx->my_parts[part_index].speed.length() /
-                            ctx->my_parts[part_index].max_speed(ctx->config);
-    auto x_to_wall =
-        x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
-    r *= speed_discount;
-    if (x_to_wall < r)
-      score -= 100000.0 * ((r - x_to_wall) / r);
-    auto y_to_wall =
-        y_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
-    if (y_to_wall < r)
-      score -= 100000.0 * ((r - y_to_wall) / r);
+    /*
+  auto r = ctx->max_speed_circle_radii[part_index];
+  double speed_discount = ctx->my_parts[part_index].speed.length() /
+                          ctx->my_parts[part_index].max_speed(ctx->config);
+  auto x_to_wall =
+      x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
+  r *= speed_discount;
+  if (x_to_wall < r)
+    score -= 100000.0 * ((r - x_to_wall) / r);
+  auto y_to_wall =
+      y_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
+  if (y_to_wall < r)
+    score -= 100000.0 * ((r - y_to_wall) / r);
+    */
     for (auto &enemy : ctx->players)
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
         auto eating_dist =
@@ -97,6 +100,18 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     if (!eaten_parts.count(i))
       alive_parts.push_back(i);
   std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
+
+  for (auto part_index : alive_parts) {
+      auto ticks = static_cast<int> (200.0 / max_speed(ctx->my_parts[part_index].mass, ctx->config) /
+            sqrt (ctx->config.inertia_factor));
+    auto mp = next_moving_point(
+        mps[part_index], ctx->my_parts[part_index].mass, accel, ticks,
+        ctx->config);
+
+    if (!ctx->config.is_point_inside(mp.pos))
+      score -= 100000.0;
+  }
+
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
     auto check_food_like = [this, &score, iteration](auto &arr, auto &taken,
@@ -123,8 +138,8 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
         for (auto part_index : alive_parts) {
           if (is_virus_dangerous_for(ctx->config, ctx->viruses[virus_index].pos,
                                      next_mps[part_index].pos,
-                                     ctx->my_parts[part_index].radius,
-                                     ctx->my_parts[part_index].mass)) {
+                                     ctx->my_parts[part_index].radius * 1.05,
+                                     ctx->my_parts[part_index].mass * 1.05)) {
             const double score_per_virus =
                 is_splitting_dangerous() ? 10000 : 300;
             score -=
