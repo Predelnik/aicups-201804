@@ -67,28 +67,13 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     score += 300. * distance_to_nearest_wall(mp.pos, ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
-
-    /*
-  auto r = ctx->max_speed_circle_radii[part_index];
-  double speed_discount = ctx->my_parts[part_index].speed.length() /
-                          ctx->my_parts[part_index].max_speed(ctx->config);
-  auto x_to_wall =
-      x_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
-  r *= speed_discount;
-  if (x_to_wall < r)
-    score -= 100000.0 * ((r - x_to_wall) / r);
-  auto y_to_wall =
-      y_distance_to_wall(mp, ctx->my_parts[part_index].radius, ctx->config);
-  if (y_to_wall < r)
-    score -= 100000.0 * ((r - y_to_wall) / r);
-    */
     for (auto &enemy : ctx->players)
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
         auto eating_dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
         auto dist = enemy.pos.distance_to(next_mps[part_index].pos);
         if (dist < 6 * eating_dist) {
-          score -= (6 * eating_dist - dist) * 100;
+          score -= (6 * eating_dist - dist) * 1000;
         }
         if (dist < 2 * eating_dist)
           eaten_parts.insert(part_index); // what is eaten could never eat
