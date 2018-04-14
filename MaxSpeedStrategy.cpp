@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 #ifdef CUSTOM_DEBUG
-#define DEBUG_FUTURE_OUTCOMES 0
+#define DEBUG_FUTURE_OUTCOMES 1
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
@@ -41,7 +41,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   if (ctx->my_parts.empty())
     return 0.0;
   int scan_precision = static_cast<int>(
-      std::max(10.0 / ctx->my_parts.back().max_speed(ctx->config), 1.0));
+      std::max(20.0 / ctx->my_parts.back ().max_speed(ctx->config) / sqrt (ctx->config.inertia_factor), 1.0));
 
   double score = 0;
   static std::vector<MovingPoint> mps;
@@ -61,9 +61,9 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
                            accel, scan_precision, ctx->config);
     auto speed_loss = (cur_speed - mp.speed.length()) / cur_speed;
-    if (speed_loss > 0.1)
+    if (speed_loss > 0.25)
       score -= (speed_loss * 50000.0);
-    else if (speed_loss > 0.0 && max_speed_diff < 0.7)
+    else if (speed_loss > 0.05 && cur_speed < ctx->config.game_max_size () / 100.0)
       score -= 50000.0;
 
     score += 200. * distance_to_nearest_wall(mp.pos, ctx->config) /
