@@ -9,6 +9,7 @@ class KnownPlayer : public Player {
 public:
   explicit KnownPlayer(const json &data);
   explicit KnownPlayer() = default;
+  explicit KnownPlayer(const Player &player);
 
   MovingPoint as_moving_point() const;
   Point visibility_center() const { return pos + speed.normalized() * 10.0; }
@@ -19,7 +20,6 @@ public:
   }
 
 public:
-  std::string id;
   Point speed;
   int ttf = 0;
 };

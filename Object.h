@@ -33,11 +33,26 @@ public:
 public:
   double mass;
 };
+
+class PartId {
+public:
+  int player_num;
+  int part_num;
+
+public:
+  bool operator<(const PartId &other) const {
+    return std::tie(player_num, part_num) <
+           std::tie(other.player_num, other.part_num);
+  }
+};
+
 class Player : public ObjectBase {
 public:
   explicit Player(const json &data);
-    double visibility_radius(int fragment_cnt) const;
-    double max_speed(const GameConfig &config) const;
+  double visibility_radius(int fragment_cnt) const;
+  double max_speed(const GameConfig &config) const;
+  Player(const Player &) = default;
+  Player &operator=(const Player &) = default;
 
 protected:
   Player() = default;
@@ -45,7 +60,7 @@ protected:
 public:
   double mass = 0.0;
   double radius = 0.0;
-  std::string id;
+  PartId id;
 };
 
 using Object = std::variant<std::monostate, Food, Ejection, Virus, Player>;

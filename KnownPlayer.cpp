@@ -8,6 +8,10 @@ KnownPlayer::KnownPlayer(const json &data) : Player(data) {
   ttf = data.value("TTF", -1);
 }
 
+KnownPlayer::KnownPlayer(const Player &player) {
+  static_cast<Player &>(*this) = player;
+}
+
 MovingPoint KnownPlayer::as_moving_point() const { return {pos, speed}; }
 
 bool is_visible(const std::vector<KnownPlayer> &parts, const Point &pos) {

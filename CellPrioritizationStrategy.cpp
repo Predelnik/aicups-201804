@@ -19,10 +19,10 @@ const Player *CellPrioritizationStrategy::find_caughtable_enemy() {
       return constant::infinity;
     return pl.mass;
   };
-  if (ctx->players.empty())
+  if (ctx->enemies.empty())
     return nullptr;
 
-  auto it = min_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
+  auto it = min_element_op(ctx->enemies.begin(), ctx->enemies.end(), get_mass);
   if (get_mass(*it) < constant::infinity)
     return &*it;
 
@@ -30,7 +30,7 @@ const Player *CellPrioritizationStrategy::find_caughtable_enemy() {
 }
 
 const Player *CellPrioritizationStrategy::find_dangerous_enemy() {
-  for (auto &p : ctx->players) {
+  for (auto &p : ctx->enemies) {
     if (can_eat(p.mass, ctx->my_parts.back().mass * 0.9))
       return &p;
   }
@@ -43,10 +43,10 @@ const Player *CellPrioritizationStrategy::find_weak_enemy() {
       return constant::infinity;
     return pl.mass;
   };
-  if (ctx->players.empty())
+  if (ctx->enemies.empty())
     return nullptr;
 
-  auto it = max_element_op(ctx->players.begin(), ctx->players.end(), get_mass);
+  auto it = max_element_op(ctx->enemies.begin(), ctx->enemies.end(), get_mass);
   if (get_mass(*it) < constant::infinity)
     return &*it;
 
@@ -124,7 +124,7 @@ void CellPrioritizationStrategy::update_danger() {
       fill_circle(danger_map, 0.5, v.pos,
                   ctx->config.virus_radius + ctx->my_radius);
     }
-  for (auto &p : ctx->players)
+  for (auto &p : ctx->enemies)
     if (can_eat(p.mass, ctx->my_total_mass))
       fill_circle(danger_map, 1.0, p.pos,
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
@@ -162,13 +162,13 @@ void CellPrioritizationStrategy::update_blocked_cells() {
 }
 
 void CellPrioritizationStrategy::update_enemies_seen() {
-  for (auto &p : ctx->players)
+  for (auto &p : ctx->enemies)
     if (can_eat(p.mass, ctx->my_total_mass))
       fill_circle(dangerous_enemy_seen_tick, ctx->tick, p.pos, p.radius);
 }
 
 void CellPrioritizationStrategy::update_last_tick_enemy_seen() {
-  if (!ctx->players.empty())
+  if (!ctx->enemies.empty())
     last_tick_enemy_seen = ctx->tick;
 }
 
