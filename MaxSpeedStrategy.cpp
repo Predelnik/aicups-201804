@@ -185,7 +185,8 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
 }
 
 bool MaxSpeedStrategy::is_splitting_dangerous() const {
-  return ctx->config.inertia_factor < 4.0;
+  return false;
+  // return ctx->config.inertia_factor < 4.0;
 }
 
 Response MaxSpeedStrategy::get_response_impl() {
