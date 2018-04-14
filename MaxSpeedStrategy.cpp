@@ -75,7 +75,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
         auto dist = enemy.pos.distance_to(next_mps[part_index].pos);
         if (dist < 6 * eating_dist) {
-          score -= (6 * eating_dist - dist) * 1000;
+          score -= (6 * eating_dist - dist) * 5000;
         }
         if (dist < 2 * eating_dist)
           alive_parts.erase(part_index); // what is eaten could never eat
