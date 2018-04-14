@@ -90,7 +90,7 @@ void Context::update_food_map() {
 void Context::update_enemy_speed() {
   for (auto &e : enemies) {
     auto it = prev_pos.find(e.id);
-    enemies.back().speed =
+    e.speed =
         it != prev_pos.end()
             ? e.pos - it->second
             : (my_center - e.pos).normalized() * max_speed(e.mass, config);
