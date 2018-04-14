@@ -50,7 +50,9 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
                  [](const MyPart &p) { return p.as_moving_point(); });
   static std::vector<MovingPoint> next_mps;
   next_mps.resize(ctx->my_parts.size());
-  std::set<int> eaten_parts;
+  std::set<int> alive_parts;
+  for (int i = 0; i < ctx->my_parts.size(); ++i)
+    alive_parts.insert(i);
   for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
     auto max_speed_diff =
@@ -64,7 +66,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     else if (speed_loss > 0.0 && max_speed_diff < 0.7)
       score -= 50000.0;
 
-    score += 300. * distance_to_nearest_wall(mp.pos, ctx->config) /
+    score += 200. * distance_to_nearest_wall(mp.pos, ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
     for (auto &enemy : ctx->players)
@@ -76,22 +78,17 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
           score -= (6 * eating_dist - dist) * 1000;
         }
         if (dist < 2 * eating_dist)
-          eaten_parts.insert(part_index); // what is eaten could never eat
+          alive_parts.erase(part_index); // what is eaten could never eat
       }
   }
-  static std::vector<int> alive_parts;
-  alive_parts.clear();
-  for (int i = 0; i < ctx->my_parts.size(); ++i)
-    if (!eaten_parts.count(i))
-      alive_parts.push_back(i);
   std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
 
   for (auto part_index : alive_parts) {
-      auto ticks = static_cast<int> (200.0 / max_speed(ctx->my_parts[part_index].mass, ctx->config) /
-            sqrt (ctx->config.inertia_factor));
-    auto mp = next_moving_point(
-        mps[part_index], ctx->my_parts[part_index].mass, accel, ticks,
-        ctx->config);
+    auto ticks = static_cast<int>(
+        200.0 / max_speed(ctx->my_parts[part_index].mass, ctx->config) /
+        sqrt(ctx->config.inertia_factor));
+    auto mp = next_moving_point(mps[part_index], ctx->my_parts[part_index].mass,
+                                accel, ticks, ctx->config);
 
     if (!ctx->config.is_point_inside(mp.pos))
       score -= 100000.0;
@@ -99,12 +96,17 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
 
   for (int iteration = 0; iteration < future_scan_iteration_count;
        ++iteration) {
-    auto check_food_like = [this, &score, iteration](auto &arr, auto &taken,
+    auto check_food_like = [this, &score, iteration, &alive_parts](auto &arr, auto &taken,
                                                      double mass) {
       for (int food_index = 0; food_index < arr.size(); ++food_index) {
         if (taken.count(food_index))
           continue;
         for (auto part_index : alive_parts) {
+          if (!is_object_reachable(ctx->config,
+                                   ctx->my_parts[part_index].radius,
+                                   arr[food_index].pos))
+            continue;
+
           if (arr[food_index].pos.is_in_circle(
                   next_mps[part_index].pos, ctx->my_parts[part_index].radius)) {
             score += (future_scan_iteration_count - iteration) * 10 * mass;
@@ -151,17 +153,20 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       }
     }
 
-    for (auto part_index : alive_parts) {
+    for (auto it = alive_parts.begin(); it != alive_parts.end();) {
 #if DEBUG_FUTURE_OUTCOMES
       m_debug_lines.emplace_back();
-      m_debug_lines.back()[0] = next_mps[part_index].pos;
+      m_debug_lines.back()[0] = next_mps[*it].pos;
 #endif
-      next_mps[part_index] = next_moving_point(
-          next_mps[part_index], ctx->my_parts[part_index].mass, accel,
-          scan_precision, ctx->config);
+      next_mps[*it] = next_moving_point(next_mps[*it], ctx->my_parts[*it].mass,
+                                        accel, scan_precision, ctx->config);
 #if DEBUG_FUTURE_OUTCOMES
-      m_debug_lines.back()[1] = next_mps[part_index].pos;
+      m_debug_lines.back()[1] = next_mps[*it].pos;
 #endif
+      if (distance_to_nearest_wall(next_mps[*it].pos, ctx->config) < 1e-10)
+        it = alive_parts.erase(it);
+      else
+        ++it;
     }
   }
   score += std::uniform_real_distribution<double>(0, 100)(m_re);

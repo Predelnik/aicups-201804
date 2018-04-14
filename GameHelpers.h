@@ -26,3 +26,5 @@ double eating_distance(double eater_radius, double eatee_radius);
 
 bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
                             const Point &pos, double radius, double mass);
+
+bool is_object_reachable (const GameConfig &config, double my_radius, const Point &object_pos);
