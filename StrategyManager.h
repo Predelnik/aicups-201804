@@ -9,7 +9,7 @@
 using nlohmann::json;
 
 class Response;
-class MyPart;
+class KnownPlayer;
 
 class StrategyManager {
 public:

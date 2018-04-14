@@ -1,6 +1,6 @@
 ﻿#include "Const.h"
+#include "KnownPlayer.h"
 #include "Matrix.h"
-#include "MyPart.h"
 #include "Object.h"
 #include "Response.h"
 #include "algorithm.h"
@@ -130,13 +130,14 @@ void CellPrioritizationStrategy::update_danger() {
                   p.radius * constant::interaction_dist_coeff + ctx->my_radius);
 }
 
-const MyPart *
+const KnownPlayer *
 CellPrioritizationStrategy::nearest_my_part_to(const Point &point) const {
   if (ctx->my_parts.empty())
     return nullptr;
-  auto it = min_element_op(
-      ctx->my_parts.begin(), ctx->my_parts.end(),
-      [&](const MyPart &part) { return part.pos.squared_distance_to(point); });
+  auto it = min_element_op(ctx->my_parts.begin(), ctx->my_parts.end(),
+                           [&](const KnownPlayer &part) {
+                             return part.pos.squared_distance_to(point);
+                           });
   return &*it;
 }
 
@@ -194,7 +195,7 @@ public:
 };
 } // namespace
 
-CellSpeed CellPrioritizationStrategy::to_cell_speed(const MyPart &p,
+CellSpeed CellPrioritizationStrategy::to_cell_speed(const KnownPlayer &p,
                                                     const Point &val) const {
   if (val.length() < p.max_speed(ctx->config) * 0.5)
     return {0, 0};
@@ -208,7 +209,7 @@ CellSpeed CellPrioritizationStrategy::to_cell_speed(const MyPart &p,
   return tbl[index];
 }
 
-Point CellPrioritizationStrategy::from_cell_speed(const MyPart &p,
+Point CellPrioritizationStrategy::from_cell_speed(const KnownPlayer &p,
                                                   const CellSpeed &sp) const {
   double speed_length = p.max_speed(ctx->config);
   if (sp[0] != 0 && sp[1] != 0)
@@ -221,6 +222,23 @@ struct move_result {
   Cell shift;
   CellSpeed speed;
 };
+
+namespace {
+MovingPoint next_moving_point(MovingPoint moving_point, double mass,
+                              const Point &acceleration, int ticks,
+                              const GameConfig &config) {
+  auto ms = max_speed(mass, config);
+  for (int i = 0; i < ticks; ++i) {
+    moving_point.speed +=
+        (acceleration.normalized() * ms - moving_point.speed) *
+        config.inertia_factor / mass;
+    if (moving_point.speed.squared_length() > pow(ms, 2))
+      moving_point.speed = moving_point.speed.normalized() * ms;
+    moving_point.pos += moving_point.speed;
+  }
+  return moving_point;
+}
+} // namespace
 
 std::optional<Point>
 CellPrioritizationStrategy::next_step_to_goal(double max_danger_level) {

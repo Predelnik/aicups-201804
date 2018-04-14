@@ -5,10 +5,10 @@
 
 using nlohmann::json;
 
-class MyPart : public Player {
+class KnownPlayer : public Player {
 public:
-  explicit MyPart(const json &data);
-  explicit MyPart() = default;
+  explicit KnownPlayer(const json &data);
+  explicit KnownPlayer() = default;
 
   MovingPoint as_moving_point() const;
   Point visibility_center() const { return pos + speed.normalized() * 10.0; }
@@ -24,4 +24,4 @@ public:
   int ttf = 0;
 };
 
-bool is_visible(const std::vector<MyPart> &parts, const Point &pos);
+bool is_visible(const std::vector<KnownPlayer> &parts, const Point &pos);
