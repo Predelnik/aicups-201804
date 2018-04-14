@@ -2,11 +2,9 @@
 
 #include <iostream>
 
-#include "MyPart.h"
 #include "Response.h"
 
 #include "MaxSpeedStrategy.h"
-#include "overload.h"
 
 #ifdef _MSC_VER
 #include <windows.h>

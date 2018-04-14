@@ -27,3 +27,8 @@ double GameConfig::distance_to_border(const Point& point) const
 {
     return std::min ({fabs (point.x), fabs (point.y), fabs (point.x - game_width), fabs (point.y - game_height)});
 }
+
+Point GameConfig::game_size_vector() const
+{
+    return {game_width, game_height};
+}

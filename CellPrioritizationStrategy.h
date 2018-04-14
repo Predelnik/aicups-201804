@@ -27,11 +27,11 @@ private:
   const Player *find_dangerous_enemy();
   const Player *find_weak_enemy();
   Response move_randomly() const;
-  CellSpeed to_cell_speed(const MyPart &p, const Point &val) const;
+  CellSpeed to_cell_speed(const KnownPlayer &p, const Point &val) const;
   void check_visible_squares();
-  Point from_cell_speed (const  MyPart &p, const CellSpeed &sp) const;
+  Point from_cell_speed (const  KnownPlayer &p, const CellSpeed &sp) const;
   void update_danger();
-  const MyPart *nearest_my_part_to(const Point &point) const;
+  const KnownPlayer *nearest_my_part_to(const Point &point) const;
   void check_if_goal_is_reached();
   void update_blocked_cells();
   void update_enemies_seen();

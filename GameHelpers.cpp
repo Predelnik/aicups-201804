@@ -1,33 +1,31 @@
 #include "GameHelpers.h"
 #include "Const.h"
 #include "GameConfig.h"
+#include "KnownPlayer.h"
 #include "Matrix.h"
 #include "MovingPoint.h"
-#include "MyPart.h"
 
-double max_speed_circle_radius(const MyPart &part, const GameConfig &config) {
-  MovingPoint mp{{0, 0}, {part.max_speed(config), 0}};
-  auto mp1 = mp;
-  auto mp2 = next_moving_point(mp, part.mass,
-                               mp.speed * Matrix::rotation(-constant::pi / 2.0),
-                               1, config);
-  auto alpha = -mp2.speed.angle();
-  return (mp2.pos.x) * std::tan(constant::pi / 2. - alpha) - mp2.pos.y;
-}
-
-MovingPoint next_moving_point(MovingPoint moving_point, double mass,
-                              const Point &acceleration, int ticks,
-                              const GameConfig &config) {
-  auto ms = max_speed(mass, config);
+void advance(KnownPlayer &player, const Point &acceleration, int ticks,
+             const GameConfig &config) {
+  auto ms = max_speed(player.mass, config);
   for (int i = 0; i < ticks; ++i) {
-    moving_point.speed +=
-        (acceleration.normalized() * ms - moving_point.speed) *
-        config.inertia_factor / mass;
-    if (moving_point.speed.squared_length() > pow(ms, 2))
-      moving_point.speed = moving_point.speed.normalized() * ms;
-    moving_point.pos += moving_point.speed;
+    player.speed += (acceleration.normalized() * ms - player.speed) *
+                    config.inertia_factor / player.mass;
+    if (player.speed.squared_length() > pow(ms, 2))
+      player.speed = player.speed.normalized() * ms;
+    player.pos += player.speed;
+    auto game_size = config.game_size_vector();
+    for (auto coord : {&Point::x, &Point::y}) {
+      if (player.pos.*coord < player.radius) {
+        player.pos.*coord = player.radius;
+        player.speed.*coord = 0.0;
+      }
+      if (player.pos.*coord > game_size.*coord - player.radius) {
+        player.pos.*coord = game_size.*coord - player.radius;
+        player.speed.*coord = 0.0;
+      }
+    }
   }
-  return moving_point;
 }
 
 double max_speed(double mass, const GameConfig &config) {

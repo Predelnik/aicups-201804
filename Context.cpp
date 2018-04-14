@@ -1,5 +1,5 @@
 ﻿#include "Context.h"
-#include "MyPart.h"
+#include "KnownPlayer.h"
 #include "Object.h"
 #include "overload.h"
 
@@ -8,10 +8,10 @@
 #include <variant>
 
 namespace {
-std::vector<MyPart> to_my_parts(const json &data) {
-  std::vector<MyPart> out(data.size());
+std::vector<KnownPlayer> to_my_parts(const json &data) {
+  std::vector<KnownPlayer> out(data.size());
   std::transform(data.begin(), data.end(), out.begin(),
-                 [](const json &data) { return MyPart(data); });
+                 [](const json &data) { return KnownPlayer(data); });
   return out;
 }
 
@@ -70,7 +70,7 @@ void Context::update_largest_part() {
   }
   my_largest_part =
       &*max_element_op(my_parts.begin(), my_parts.end(),
-                       [](const MyPart &part) { return part.mass; });
+                       [](const KnownPlayer &part) { return part.mass; });
 }
 
 void Context::update_speed_data() {
@@ -87,13 +87,6 @@ void Context::update_food_map() {
     food_map.insert({f.pos, &f});
 }
 
-void Context::update_max_speed_circle_radii()
-{
-    max_speed_circle_radii.resize (my_parts.size ());
-    for (int i = 0; i < my_parts.size (); ++i)
-        max_speed_circle_radii[i] = max_speed_circle_radius (my_parts[i], config);
-}
-
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
@@ -101,7 +94,6 @@ void Context::update_caches() {
   update_largest_part();
   update_speed_data();
   update_food_map();
-  update_max_speed_circle_radii ();
 }
 
 void Context::update_my_center() {

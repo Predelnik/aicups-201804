@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../nlohmann/json.hpp"
-#include "MyPart.h"
 using nlohmann::json;
 
 class Point;
@@ -13,6 +12,7 @@ public:
   bool is_point_inside (const Point &point) const;
   double distance_to_border (const Point &point) const;
   double game_max_size() const { return std::max (game_width, game_height);}
+  Point game_size_vector () const;
 
 public:
   double food_mass = 0;

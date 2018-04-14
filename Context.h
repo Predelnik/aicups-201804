@@ -6,7 +6,7 @@
 
 using nlohmann::json;
 
-class MyPart;
+class KnownPlayer;
 class Food;
 class Ejection;
 class Player;
@@ -26,19 +26,16 @@ private:
   void update_largest_part();
   void update_speed_data();
   void update_food_map();
-  void update_max_speed_circle_radii();
   void update_caches();
   void update_my_center();
 
 public:
   GameConfig config;
-  std::vector<MyPart> my_parts;
+  std::vector<KnownPlayer> my_parts;
   std::vector<Food> food;
   std::vector<Ejection> ejections;
   std::vector<Player> players;
   std::vector<Virus> viruses;
-
-  std::vector<double> max_speed_circle_radii;
 
   std::multimap<Point, Food*> food_map;
 
@@ -48,5 +45,5 @@ public:
   double speed_angle;
   int tick = 0;
   Point avg_speed;
-  MyPart *my_largest_part = nullptr;
+  KnownPlayer *my_largest_part = nullptr;
 };
