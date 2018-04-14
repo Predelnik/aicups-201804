@@ -19,7 +19,7 @@ std::vector<KnownPlayer> to_my_parts(const json &data) {
 Context::Context() = default;
 Context::~Context() = default;
 
-void Context::update_config(const json &data) { config = GameConfig{data}; }
+void Context::initialize(const json &data) { config = GameConfig{data}; }
 
 void Context::update(const json &data) {
   ++tick;

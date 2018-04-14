@@ -18,7 +18,7 @@ class Context {
 public:
   Context();
   ~Context();
-  void update_config(const json &data);
+  void initialize(const json &data);
   void update(const json &data);
 
 private:
