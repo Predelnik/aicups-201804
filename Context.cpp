@@ -3,8 +3,8 @@
 #include "Object.h"
 #include "overload.h"
 
-#include "algorithm.h"
 #include "GameHelpers.h"
+#include "algorithm.h"
 #include <variant>
 
 namespace {
@@ -29,7 +29,7 @@ void Context::update(const json &data) {
       [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   fill_objects(data["Objects"]);
   std::sort(
-      players.begin(), players.end(),
+      enemies.begin(), enemies.end(),
       [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   update_caches();
 }
@@ -37,15 +37,15 @@ void Context::update(const json &data) {
 void Context::fill_objects(const json &data) {
   food.clear();
   viruses.clear();
-  players.clear();
+  enemies.clear();
   ejections.clear();
   for (auto &element : data) {
     std::visit(
         overload(
-            [this](Food &&food_piece) { food.push_back(food_piece); },
-            [this](Virus &&virus) { viruses.push_back(virus); },
-            [this](Player &&player) { players.push_back(std::move(player)); },
-            [this](Ejection &&ejection) { ejections.push_back(ejection); },
+            [this](const Food &food_piece) { food.push_back(food_piece); },
+            [this](const Virus &virus) { viruses.push_back(virus); },
+            [this](const Player &player) { enemies.emplace_back(player); },
+            [this](const Ejection &ejection) { ejections.push_back(ejection); },
             [](std::monostate) {}),
         to_object(element));
   }
@@ -87,6 +87,17 @@ void Context::update_food_map() {
     food_map.insert({f.pos, &f});
 }
 
+void Context::update_enemy_speed() {
+  for (auto &e : enemies) {
+    auto it = prev_pos.find(e.id);
+    enemies.back().speed =
+        it != prev_pos.end()
+            ? e.pos - it->second
+            : (my_center - e.pos).normalized() * max_speed(e.mass, config);
+    prev_pos[e.id] = e.pos;
+  }
+}
+
 void Context::update_caches() {
   update_my_center();
   update_my_radius();
@@ -94,6 +105,7 @@ void Context::update_caches() {
   update_largest_part();
   update_speed_data();
   update_food_map();
+  update_enemy_speed();
 }
 
 void Context::update_my_center() {

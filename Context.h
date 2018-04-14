@@ -2,6 +2,7 @@
 #include "../nlohmann/json.hpp"
 #include "GameConfig.h"
 
+#include "Object.h"
 #include "Point.h"
 
 using nlohmann::json;
@@ -11,6 +12,7 @@ class Food;
 class Ejection;
 class Player;
 class Virus;
+class Enemy;
 
 class Context {
 public:
@@ -26,6 +28,7 @@ private:
   void update_largest_part();
   void update_speed_data();
   void update_food_map();
+  void update_enemy_speed();
   void update_caches();
   void update_my_center();
 
@@ -34,10 +37,10 @@ public:
   std::vector<KnownPlayer> my_parts;
   std::vector<Food> food;
   std::vector<Ejection> ejections;
-  std::vector<Player> players;
+  std::vector<KnownPlayer> enemies;
   std::vector<Virus> viruses;
 
-  std::multimap<Point, Food*> food_map;
+  std::multimap<Point, Food *> food_map;
 
   Point my_center;
   double my_radius;
@@ -46,4 +49,5 @@ public:
   int tick = 0;
   Point avg_speed;
   KnownPlayer *my_largest_part = nullptr;
+  std::map<PartId, Point> prev_pos;
 };

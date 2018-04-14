@@ -15,7 +15,8 @@ double Player::max_speed(const GameConfig &config) const {
 }
 
 Player::Player(const json &data) : ObjectBase(data) {
-  id = data["Id"];
+  std::string str = data["Id"];
+  sscanf(str.c_str(), "%d.%d", &id.player_num, &id.part_num);
   mass = data["M"];
   radius = data["R"];
 }
