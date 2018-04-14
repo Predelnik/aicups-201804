@@ -9,6 +9,9 @@
 #include <set>
 #include <unordered_set>
 
+#include "range.hpp"
+using namespace util::lang;
+
 #ifdef CUSTOM_DEBUG
 #define DEBUG_FUTURE_OUTCOMES 0
 #endif
@@ -49,12 +52,12 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   static std::vector<KnownPlayer> my_predicted_parts, predicted_enemies;
   my_predicted_parts = ctx->my_parts;
   predicted_enemies = ctx->enemies;
-  std::set<int> alive_parts;
-  for (int i = 0; i < ctx->my_parts.size(); ++i)
-    alive_parts.insert(i);
+  std::set<size_t> alive_parts;
+  for (auto my_part_index : indices (ctx->my_parts))
+    alive_parts.insert(my_part_index);
   for (auto &e : predicted_enemies)
     advance(e, e.speed, scan_precision, ctx->config);
-  for (int part_index = 0; part_index < ctx->my_parts.size(); ++part_index) {
+  for (auto part_index : indices (ctx->my_parts)) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
     auto max_speed_diff =
         cur_speed / max_speed(ctx->my_parts[part_index].mass, ctx->config);
@@ -92,7 +95,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   if (deviation > 100.0) {
     score -= (deviation - 100.0) * 1000.0;
   }
-  std::unordered_set<int> food_taken, ejection_taken, virus_bumped;
+  std::unordered_set<size_t> food_taken, ejection_taken, virus_bumped;
 
   for (auto part_index : alive_parts) {
     auto ticks = static_cast<int>(
@@ -105,11 +108,10 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       score -= 100000.0;
   }
 
-  for (int iteration = 0; iteration < future_scan_iteration_count;
-       ++iteration) {
+  for (auto iteration : range (0, future_scan_iteration_count)) {
     auto check_food_like = [this, &score, iteration,
                             &alive_parts](auto &arr, auto &taken, double mass) {
-      for (int food_index = 0; food_index < arr.size(); ++food_index) {
+      for (auto food_index : indices (arr)) {
         if (taken.count(food_index))
           continue;
         for (auto part_index : alive_parts) {
@@ -125,8 +127,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
     check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
     if (!ctx->enemies.empty() || is_splitting_dangerous()) {
-      for (int virus_index = 0; virus_index < ctx->viruses.size();
-           ++virus_index) {
+      for (auto virus_index : indices (ctx->viruses)) {
         if (virus_bumped.count(virus_index))
           continue;
         for (auto part_index : alive_parts) {
@@ -144,9 +145,8 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
       }
     }
 
-    std::set<int> players_taken;
-    for (int enemy_index = 0; enemy_index < predicted_enemies.size();
-         ++enemy_index) {
+    std::set<size_t> players_taken;
+    for (auto enemy_index : indices (predicted_enemies)) {
       if (players_taken.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
@@ -210,9 +210,9 @@ Response MaxSpeedStrategy::get_response_impl() {
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
 
-  for (int angle_try = 0; angle_try <= angle_discretization; ++angle_try) {
+  for (auto angle_try : range (0, angle_partition_count)) {
     double angle =
-        min_angle + (max_angle - min_angle) * angle_try / angle_discretization;
+        min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
     double score = calc_angle_score(angle);
 
     if (score > best_angle_score) {
