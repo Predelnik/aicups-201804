@@ -5,6 +5,9 @@
 #include "Response.h"
 
 #include "MaxSpeedStrategy.h"
+#include <fstream>
+#include "range.hpp"
+using namespace util::lang;
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -23,8 +26,8 @@ void StrategyManager::run() {
 #endif
   std::string data;
   std::cin >> data;
-  std::cin.sync_with_stdio(false);
-  m_context.update_config(json::parse(data));
+  std::istream::sync_with_stdio(false);
+  m_context.initialize(json::parse(data));
   m_strategy->initialize(m_context.config);
   while (true) {
     std::cin >> data;
@@ -36,4 +39,24 @@ void StrategyManager::run() {
 json StrategyManager::on_tick(const json &data) {
   m_context.update(data);
   return m_strategy->get_response(m_context).to_json();
+}
+
+void StrategyManager::run_feed(const std::string &path) {
+  std::ifstream ifs(path.c_str());
+  if (!ifs)
+    return;
+  std::string line;
+  std::getline(ifs, line);
+  m_context.initialize(json::parse(line));
+  m_strategy->initialize(m_context.config);
+  std::getline(ifs, line); // empty line
+  while (ifs) {
+    std::getline(ifs, line);
+    std::cout << "Parsed " << line << '\n';
+    std::getline(ifs, line);
+    m_context.update(json::parse(line));
+    m_strategy->get_response(m_context);
+    std::getline(ifs, line); // answer
+    std::getline(ifs, line); // empty line
+  }
 }
