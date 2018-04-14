@@ -5,7 +5,7 @@
 #include "MovingPoint.h"
 #include "MyPart.h"
 
-double max_speed_circle_radius(const MyPart& part, const GameConfig &config) {
+double max_speed_circle_radius(const MyPart &part, const GameConfig &config) {
   MovingPoint mp{{0, 0}, {part.max_speed(config), 0}};
   auto mp1 = mp;
   auto mp2 = next_moving_point(mp, part.mass,
@@ -62,7 +62,8 @@ double distance_to_nearest_wall(const Point &p, const GameConfig &config) {
                    std::max(config.game_height - p.y, 0.0)});
 }
 
-double distance_to_nearest_wall(const Point &p, double radius, const GameConfig &config) {
+double distance_to_nearest_wall(const Point &p, double radius,
+                                const GameConfig &config) {
   return std::min({std::max(p.x - radius, 0.0), std::max(p.y - radius, 0.0),
                    std::max(config.game_width - p.x - radius, 0.0),
                    std::max(config.game_height - p.y - radius, 0.0)});
@@ -95,4 +96,20 @@ bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
   auto dangerous_dist =
       config.virus_radius * constant::virus_hurt_factor + radius;
   return pos.is_in_circle(virus_pos, dangerous_dist);
+}
+
+bool is_object_reachable(const GameConfig &config, double my_radius,
+                         const Point &object_pos) {
+  for (int i = 0; i < 2; ++i)
+    for (int j = 0; j < 2; ++j) {
+      Point corner(i * config.game_width, j * config.game_height);
+      if (corner.squared_distance_to(object_pos) > std::pow(my_radius, 2))
+        return true;
+      corner.x = fabs(corner.x - my_radius);
+      corner.y = fabs(corner.y - my_radius);
+      if (corner.squared_distance_to(object_pos) > std::pow(my_radius, 2))
+        return false;
+    }
+
+  return true;
 }
