@@ -5,7 +5,7 @@
 KnownPlayer::KnownPlayer(const json &data) : Player(data) {
   speed.x = data["SX"];
   speed.y = data["SY"];
-  ttf = data.value("TTF", -1);
+  ticks_to_fuse = data.value("TTF", -1);
 }
 
 KnownPlayer::KnownPlayer(const Player &player) {

@@ -34,7 +34,6 @@ bool Point::is_in_circle(const Point& center, double radius) const
 {
     if (x < center.x - radius || x > center.x + radius || y < center.y - radius || y > center.y + radius)
         return false;
-
     return squared_distance_to(center) < pow (radius, 2);
 }
 

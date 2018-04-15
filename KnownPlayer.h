@@ -21,7 +21,7 @@ public:
 
 public:
   Point speed;
-  int ttf = 0;
+  int ticks_to_fuse = 0;
 };
 
 bool is_visible(const std::vector<KnownPlayer> &parts, const Point &pos);
