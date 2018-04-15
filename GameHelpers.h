@@ -30,3 +30,5 @@ bool is_virus_dangerous_for(const GameConfig &config, const Point &virus_pos,
 
 bool is_object_reachable(const GameConfig &config, double my_radius,
                          const Point &object_pos);
+
+double radius_by_mass (double mass);

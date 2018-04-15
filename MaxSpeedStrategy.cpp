@@ -10,10 +10,12 @@
 #include <unordered_set>
 
 #include "range.hpp"
+#include <queue>
 using namespace util::lang;
 
 #ifdef CUSTOM_DEBUG
 #define DEBUG_FUTURE_OUTCOMES 0
+#define DEBUG_FUSION 1
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
@@ -60,6 +62,50 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     alive_parts.insert(my_part_index);
   for (auto &e : predicted_enemies)
     advance(e, e.speed, scan_precision, ctx->config);
+
+  std::vector<KnownPlayer> fusions;
+  std::vector<bool> used(predicted_enemies.size());
+  for (auto enemy_index : indices(predicted_enemies)) {
+    if (used[enemy_index])
+      continue;
+    if (predicted_enemies[enemy_index].ticks_to_fuse > 50)
+      continue;
+
+    fusions.push_back(predicted_enemies[enemy_index]);
+    fusions.back().pos *= fusions.back().mass;
+    used[enemy_index] = true;
+    int cnt = 1;
+    bool fusion_happened = true;
+    while (fusion_happened) {
+      fusion_happened = false;
+      for (auto ind : indices(predicted_enemies)) {
+        if (used[ind])
+          continue;
+        if ((fusions.back().pos / fusions.back().mass)
+                .squared_distance_to(predicted_enemies[ind].pos) >
+            pow(predicted_enemies[ind].radius +
+                    radius_by_mass(fusions.back().mass),
+                2))
+          continue;
+
+        if (predicted_enemies[enemy_index].ticks_to_fuse > 50)
+          continue;
+
+        ++cnt;
+        fusion_happened = true;
+        used[ind] = true;
+        fusions.back().pos +=
+            predicted_enemies[ind].pos * predicted_enemies[ind].mass;
+        fusions.back().mass += predicted_enemies[ind].mass;
+      }
+    }
+
+    if (cnt == 1)
+      fusions.pop_back();
+    else
+      fusions.back().pos /= fusions.back().mass;
+  }
+
   for (auto part_index : indices(ctx->my_parts)) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
     auto max_speed_diff =
@@ -93,6 +139,24 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
         if (dist < 2 * eating_dist)
           alive_parts.erase(part_index); // what is eaten could never eat
       }
+    for (auto &f : fusions) {
+      if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
+        auto r = radius_by_mass(f.mass);
+#if DEBUG_FUSION
+        for (int i = 0; i < 2; ++i)
+          for (int j = 0; j < 2; ++j) {
+            m_debug_lines.push_back(
+                {f.pos + Point{(2 * i - 1) * r, (2 * j - 1) * r}, f.pos});
+            m_debug_line_colors.push_back("black");
+          }
+#endif
+        auto eating_dist = eating_distance(r, ctx->my_parts[part_index].radius);
+        auto dist = f.pos.distance_to(my_predicted_parts[part_index].pos);
+        if (dist < 3 * eating_dist) {
+          score -= (3 * eating_dist - dist) * 4000;
+        }
+      }
+    }
   }
   double deviation = 0.0;
   for (auto &p : my_predicted_parts)

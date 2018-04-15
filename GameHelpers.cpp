@@ -111,3 +111,8 @@ bool is_object_reachable(const GameConfig &config, double my_radius,
 
   return true;
 }
+
+double radius_by_mass(double mass)
+{
+    return 2 * sqrt (mass);
+}

@@ -52,7 +52,7 @@ public:
     return *this;
   }
 
-  bool operator< (const Point &other) const;
+  bool operator<(const Point &other) const;
   Self operator-() const { return {-x, -y}; }
 
   Self operator*(double mult) const { return {x * mult, y * mult}; }
@@ -65,11 +65,15 @@ public:
     return *this;
   }
 
-  bool is_in_circle (const Point &center, double radius) const;
+  bool is_in_circle(const Point &center, double radius) const;
 
   double squared_distance_to(const Point &other) const;
   double squared_length() const;
   double angle() const;
+  Point &operator*=(const double &mass) {
+    *this = *this * mass;
+    return *this;
+  }
 };
 
 std::array<Point, 2> rect_around(const Point &pnt, double side);

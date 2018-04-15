@@ -4,6 +4,7 @@
 
 #include "Object.h"
 #include "Point.h"
+#include <random>
 
 using nlohmann::json;
 
@@ -49,5 +50,8 @@ public:
   int tick = 0;
   Point avg_speed;
   KnownPlayer *my_largest_part = nullptr;
-  std::map<PartId, Point> prev_pos;
+
+private:
+  std::map<PartId, KnownPlayer> m_prev_enemy_states;
+  std::default_random_engine m_re;
 };

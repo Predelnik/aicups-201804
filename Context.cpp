@@ -6,6 +6,7 @@
 #include "GameHelpers.h"
 #include "algorithm.h"
 #include <variant>
+#include "Defines.h"
 
 namespace {
 std::vector<KnownPlayer> to_my_parts(const json &data) {
@@ -16,7 +17,7 @@ std::vector<KnownPlayer> to_my_parts(const json &data) {
 }
 
 } // namespace
-Context::Context() = default;
+Context::Context() : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
 Context::~Context() = default;
 
 void Context::initialize(const json &data) { config = GameConfig{data}; }
@@ -89,13 +90,25 @@ void Context::update_food_map() {
 
 void Context::update_enemy_speed() {
   for (auto &e : enemies) {
-    auto it = prev_pos.find(e.id);
-    e.speed =
-        it != prev_pos.end()
-            ? e.pos - it->second
-            : (my_center - e.pos).normalized() * max_speed(e.mass, config);
-    prev_pos[e.id] = e.pos;
+    auto it = m_prev_enemy_states.find(e.id);
+    e.speed = it != m_prev_enemy_states.end() ? e.pos - it->second.pos
+                                     : (my_center - e.pos).normalized() *
+                                           max_speed(e.mass, config);
+    if (it != m_prev_enemy_states.end()) {
+      if (e.mass > it->second.mass * 1.75)
+        e.ticks_to_fuse = config.ticks_til_fusion;
+      else {
+        e.ticks_to_fuse = it->second.ticks_to_fuse;
+        --e.ticks_to_fuse;
+      }
+    } else
+      e.ticks_to_fuse = std::uniform_int_distribution<int> (0, config.ticks_til_fusion)(m_re);
   }
+
+  m_prev_enemy_states.clear();
+
+  for (auto &e : enemies)
+    m_prev_enemy_states[e.id] = e;
 }
 
 void Context::update_caches() {
