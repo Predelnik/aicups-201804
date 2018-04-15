@@ -79,6 +79,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     while (fusion_happened) {
       fusion_happened = false;
       for (auto ind : indices(predicted_enemies)) {
+        if (predicted_enemies[ind].id.player_num != fusions.back ().id.player_num)
+            continue;
         if (used[ind])
           continue;
         if ((fusions.back().pos / fusions.back().mass)
@@ -296,25 +298,28 @@ Response MaxSpeedStrategy::get_response_impl() {
   m_debug_lines.clear();
   m_debug_line_colors.clear();
 #endif
-  double best_angle = 0.0;
+  Point best_target;
   double best_angle_score = -std::numeric_limits<int>::min();
 
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
 
-  for (auto angle_try : range(0, angle_partition_count)) {
-    double angle =
-        min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
-    auto target =
-        border_point_by_vector((Point(1., 0.) * Matrix::rotation(angle)));
+  auto check_target = [&](const Point &target) {
     double score = calc_target_score(target);
 
     if (score > best_angle_score) {
       best_angle_score = score;
-      best_angle = angle;
+      best_target = target;
     }
+  };
+  for (auto angle_try : range(0, angle_partition_count)) {
+    double angle =
+        min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
+    check_target(
+        border_point_by_vector((Point(1., 0.) * Matrix::rotation(angle))));
   }
-  auto r = move_by_vector(Point(1., 0.) * Matrix::rotation(best_angle));
+  check_target(ctx->my_center);
+  auto r = Response{}.target(best_target);
   r.debug("Score: " + std::to_string(best_angle_score));
   if (!is_splitting_dangerous() &&
       ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
