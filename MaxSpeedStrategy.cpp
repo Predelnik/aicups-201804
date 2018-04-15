@@ -67,11 +67,11 @@ double MaxSpeedStrategy::calc_target_score(const Point& target) {
     advance(my_predicted_parts[part_index], target - my_predicted_parts[part_index].pos, scan_precision, ctx->config);
     auto speed_loss =
         (cur_speed - my_predicted_parts[part_index].speed.length()) / cur_speed;
-    if (speed_loss > 0.25)
-      score -= (speed_loss * 50000.0);
-    else if (speed_loss > 0.05 &&
-             cur_speed < ctx->config.game_max_size() / 100.0)
-      score -= 50000.0;
+    auto speed_loss_limit = 0.05;
+    if (cur_speed > ctx->config.game_max_size() / 100.0) /* with huge speed factors it's fine to lose speed */
+        speed_loss_limit = 0.25;
+    if (speed_loss > speed_loss_limit)
+      score -= ((speed_loss - speed_loss_limit) * 25000.0);
 
     score += 200. *
              distance_to_nearest_wall(my_predicted_parts[part_index].pos,
