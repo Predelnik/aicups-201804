@@ -13,7 +13,7 @@
 using namespace util::lang;
 
 #ifdef CUSTOM_DEBUG
-#define DEBUG_FUTURE_OUTCOMES 1
+#define DEBUG_FUTURE_OUTCOMES 0
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
@@ -43,7 +43,7 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
   return Response{}.target(border_point_by_vector(v));
 }
 
-double MaxSpeedStrategy::calc_target_score(const Point& target) {
+double MaxSpeedStrategy::calc_target_score(const Point &target) {
   if (ctx->my_parts.empty())
     return 0.0;
   int scan_precision = static_cast<int>(
@@ -64,22 +64,26 @@ double MaxSpeedStrategy::calc_target_score(const Point& target) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
     auto max_speed_diff =
         cur_speed / max_speed(ctx->my_parts[part_index].mass, ctx->config);
-    advance(my_predicted_parts[part_index], target - my_predicted_parts[part_index].pos, scan_precision, ctx->config);
+    advance(my_predicted_parts[part_index],
+            target - my_predicted_parts[part_index].pos, scan_precision,
+            ctx->config);
     auto speed_loss =
         (cur_speed - my_predicted_parts[part_index].speed.length()) / cur_speed;
     auto speed_loss_limit = 0.05;
-    if (cur_speed > ctx->config.game_max_size() / 100.0) /* with huge speed factors it's fine to lose speed */
-        speed_loss_limit = 0.25;
+    if (cur_speed >
+        ctx->config.game_max_size() /
+            100.0) /* with huge speed factors it's fine to lose speed */
+      speed_loss_limit = 0.25;
     if (speed_loss > speed_loss_limit)
       score -= ((speed_loss - speed_loss_limit) * 25000.0);
 
-    score += 200. *
+    score += 500. *
              distance_to_nearest_wall(my_predicted_parts[part_index].pos,
                                       ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
     for (auto &enemy : predicted_enemies)
-      if (can_eat(enemy.mass, ctx->my_parts[part_index].mass)) {
+      if (can_eat(enemy.mass, ctx->my_parts[part_index].mass * 0.95)) {
         auto eating_dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
         auto dist = enemy.pos.distance_to(my_predicted_parts[part_index].pos);
@@ -105,7 +109,8 @@ double MaxSpeedStrategy::calc_target_score(const Point& target) {
         200.0 / max_speed(ctx->my_parts[part_index].mass, ctx->config) /
         sqrt(ctx->config.inertia_factor));
     auto mp = ctx->my_parts[part_index];
-    advance(mp, target - my_predicted_parts[part_index].pos, ticks, ctx->config);
+    advance(mp, target - my_predicted_parts[part_index].pos, ticks,
+            ctx->config);
 
     if (distance_to_nearest_wall(mp.pos, mp.radius, ctx->config) < 1e-5)
       score -= 100000.0;
@@ -168,7 +173,8 @@ double MaxSpeedStrategy::calc_target_score(const Point& target) {
       m_debug_lines.emplace_back();
       m_debug_lines.back()[0] = my_predicted_parts[part_index].pos;
 #endif
-      advance(my_predicted_parts[part_index], target - my_predicted_parts[part_index].pos, scan_precision,
+      advance(my_predicted_parts[part_index],
+              target - my_predicted_parts[part_index].pos, scan_precision,
               ctx->config);
 #if DEBUG_FUTURE_OUTCOMES
       m_debug_lines.back()[1] = my_predicted_parts[part_index].pos;
@@ -177,6 +183,25 @@ double MaxSpeedStrategy::calc_target_score(const Point& target) {
 
     for (auto &e : predicted_enemies)
       advance(e, e.speed, scan_precision, ctx->config);
+
+    for (auto it = alive_parts.begin(); it != alive_parts.end();) {
+      bool do_continue = false;
+      for (auto &enemy : predicted_enemies)
+        if (can_eat(enemy.mass, ctx->my_parts[*it].mass * 0.95)) {
+          auto eating_dist =
+              eating_distance(enemy.radius, ctx->my_parts[*it].radius);
+          auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
+          if (dist < eating_dist * 1.2) {
+            it = alive_parts.erase(it); // what is eaten could never eat
+            score -= 10000.0;
+            do_continue = true;
+            break;
+          }
+        }
+      if (do_continue)
+        continue;
+      ++it;
+    }
   }
   score += std::uniform_real_distribution<double>(0, 100)(m_re);
 #if DEBUG_FUTURE_OUTCOMES
@@ -216,7 +241,8 @@ Response MaxSpeedStrategy::get_response_impl() {
   for (auto angle_try : range(0, angle_partition_count)) {
     double angle =
         min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
-    auto target = border_point_by_vector((Point(1., 0.) * Matrix::rotation(angle)));
+    auto target =
+        border_point_by_vector((Point(1., 0.) * Matrix::rotation(angle)));
     double score = calc_target_score(target);
 
     if (score > best_angle_score) {
