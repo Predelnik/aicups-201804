@@ -13,13 +13,13 @@
 using namespace util::lang;
 
 #ifdef CUSTOM_DEBUG
-#define DEBUG_FUTURE_OUTCOMES 0
+#define DEBUG_FUTURE_OUTCOMES 1
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
     : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
 
-Response MaxSpeedStrategy::move_by_vector(const Point &v) {
+Point MaxSpeedStrategy::border_point_by_vector(const Point &v) {
   auto &c = ctx->my_center;
   auto C = -v.y * c.x + v.x * c.y;
   double xl_int = v.x < 0.0 ? -C / -v.x : constant::infinity;
@@ -29,18 +29,21 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
   double yr_int = v.y > 0.0 ? (-C + v.x * ctx->config.game_height) / v.y
                             : constant::infinity;
   if (xl_int >= 0.0 && xl_int <= ctx->config.game_height)
-    return Response{}.target({0., xl_int});
+    return {0., xl_int};
   if (xr_int >= 0.0 && xr_int <= ctx->config.game_height)
-    return Response{}.target({ctx->config.game_width, xr_int});
+    return {ctx->config.game_width, xr_int};
   if (yl_int >= 0.0 && yl_int <= ctx->config.game_width)
-    return Response{}.target({yl_int, 0.});
+    return {yl_int, 0.};
   if (yr_int >= 0.0 && yr_int <= ctx->config.game_width)
-    return Response{}.target({yr_int, ctx->config.game_height});
-  return {};
+    return {yr_int, ctx->config.game_height};
+  return ctx->my_center;
 }
 
-double MaxSpeedStrategy::calc_angle_score(double angle) {
-  auto accel = (Point(1., 0.) * Matrix::rotation(angle));
+Response MaxSpeedStrategy::move_by_vector(const Point &v) {
+  return Response{}.target(border_point_by_vector(v));
+}
+
+double MaxSpeedStrategy::calc_target_score(const Point& target) {
   if (ctx->my_parts.empty())
     return 0.0;
   int scan_precision = static_cast<int>(
@@ -53,15 +56,15 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
   my_predicted_parts = ctx->my_parts;
   predicted_enemies = ctx->enemies;
   std::set<size_t> alive_parts;
-  for (auto my_part_index : indices (ctx->my_parts))
+  for (auto my_part_index : indices(ctx->my_parts))
     alive_parts.insert(my_part_index);
   for (auto &e : predicted_enemies)
     advance(e, e.speed, scan_precision, ctx->config);
-  for (auto part_index : indices (ctx->my_parts)) {
+  for (auto part_index : indices(ctx->my_parts)) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
     auto max_speed_diff =
         cur_speed / max_speed(ctx->my_parts[part_index].mass, ctx->config);
-    advance(my_predicted_parts[part_index], accel, scan_precision, ctx->config);
+    advance(my_predicted_parts[part_index], target - my_predicted_parts[part_index].pos, scan_precision, ctx->config);
     auto speed_loss =
         (cur_speed - my_predicted_parts[part_index].speed.length()) / cur_speed;
     if (speed_loss > 0.25)
@@ -102,16 +105,16 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
         200.0 / max_speed(ctx->my_parts[part_index].mass, ctx->config) /
         sqrt(ctx->config.inertia_factor));
     auto mp = ctx->my_parts[part_index];
-    advance(mp, accel, ticks, ctx->config);
+    advance(mp, target - my_predicted_parts[part_index].pos, ticks, ctx->config);
 
     if (distance_to_nearest_wall(mp.pos, mp.radius, ctx->config) < 1e-5)
       score -= 100000.0;
   }
 
-  for (auto iteration : range (0, future_scan_iteration_count)) {
+  for (auto iteration : range(0, future_scan_iteration_count)) {
     auto check_food_like = [this, &score, iteration,
                             &alive_parts](auto &arr, auto &taken, double mass) {
-      for (auto food_index : indices (arr)) {
+      for (auto food_index : indices(arr)) {
         if (taken.count(food_index))
           continue;
         for (auto part_index : alive_parts) {
@@ -127,7 +130,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
     check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
     if (!ctx->enemies.empty() || is_splitting_dangerous()) {
-      for (auto virus_index : indices (ctx->viruses)) {
+      for (auto virus_index : indices(ctx->viruses)) {
         if (virus_bumped.count(virus_index))
           continue;
         for (auto part_index : alive_parts) {
@@ -146,7 +149,7 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     }
 
     std::set<size_t> players_taken;
-    for (auto enemy_index : indices (predicted_enemies)) {
+    for (auto enemy_index : indices(predicted_enemies)) {
       if (players_taken.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
@@ -163,12 +166,12 @@ double MaxSpeedStrategy::calc_angle_score(double angle) {
     for (auto part_index : alive_parts) {
 #if DEBUG_FUTURE_OUTCOMES
       m_debug_lines.emplace_back();
-      m_debug_lines.back()[0] = predicted_players[part_index].pos;
+      m_debug_lines.back()[0] = my_predicted_parts[part_index].pos;
 #endif
-      advance(my_predicted_parts[part_index], accel, scan_precision,
+      advance(my_predicted_parts[part_index], target - my_predicted_parts[part_index].pos, scan_precision,
               ctx->config);
 #if DEBUG_FUTURE_OUTCOMES
-      m_debug_lines.back()[1] = predicted_players[part_index].pos;
+      m_debug_lines.back()[1] = my_predicted_parts[part_index].pos;
 #endif
     }
 
@@ -210,10 +213,11 @@ Response MaxSpeedStrategy::get_response_impl() {
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
 
-  for (auto angle_try : range (0, angle_partition_count)) {
+  for (auto angle_try : range(0, angle_partition_count)) {
     double angle =
         min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
-    double score = calc_angle_score(angle);
+    auto target = border_point_by_vector((Point(1., 0.) * Matrix::rotation(angle)));
+    double score = calc_target_score(target);
 
     if (score > best_angle_score) {
       best_angle_score = score;
