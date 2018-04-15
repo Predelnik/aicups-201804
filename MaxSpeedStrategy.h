@@ -18,12 +18,13 @@ struct FoodSeen {
 class MaxSpeedStrategy : public Strategy {
 public:
   MaxSpeedStrategy();
-  Response get_response(const Context &context) override;
+    Point border_point_by_vector(const Point& v);
+    Response get_response(const Context &context) override;
   void initialize(const GameConfig &config) override;
 
 private:
   Response move_by_vector(const Point &v);
-  double calc_angle_score(double angle);
+  double calc_target_score(const Point& target);
   bool is_splitting_dangerous() const;
   Response get_response_impl();
   Response speed_case();
