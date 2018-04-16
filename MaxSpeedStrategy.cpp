@@ -4,8 +4,8 @@
 #include "GameHelpers.h"
 #include "KnownPlayer.h"
 #include "Matrix.h"
-#include "MovingPoint.h"
 #include "Response.h"
+#include "algorithm.h"
 #include <set>
 #include <unordered_set>
 
@@ -45,68 +45,69 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
   return Response{}.target(border_point_by_vector(v));
 }
 
-double MaxSpeedStrategy::calc_target_score(const Point &target) {
-  if (ctx->my_parts.empty())
-    return 0.0;
-  int scan_precision = static_cast<int>(
-      std::max(20.0 / ctx->my_parts.back().max_speed(ctx->config) /
-                   sqrt(ctx->config.inertia_factor),
-               1.0));
-
-  double score = 0;
-  static std::vector<KnownPlayer> my_predicted_parts, predicted_enemies;
-  my_predicted_parts = ctx->my_parts;
-  predicted_enemies = ctx->enemies;
-  std::set<size_t> alive_parts;
-  for (auto my_part_index : indices(ctx->my_parts))
-    alive_parts.insert(my_part_index);
-  for (auto &e : predicted_enemies)
-    advance(e, e.speed, scan_precision, ctx->config);
-
-  std::vector<KnownPlayer> fusions;
-  std::vector<bool> used(predicted_enemies.size());
-  for (auto enemy_index : indices(predicted_enemies)) {
+void MaxSpeedStrategy::calculate_fusions(
+    const std::vector<KnownPlayer> &enemies) {
+  std::vector<bool> used(enemies.size());
+  for (auto enemy_index : indices(enemies)) {
     if (used[enemy_index])
       continue;
-    if (predicted_enemies[enemy_index].ticks_to_fuse > 50)
+    if (enemies[enemy_index].ticks_to_fuse > 50)
       continue;
 
-    fusions.push_back(predicted_enemies[enemy_index]);
-    fusions.back().pos *= fusions.back().mass;
+    m_fusions.clear();
+    m_fusions.push_back(enemies[enemy_index]);
+    m_fusions.back().pos *= m_fusions.back().mass;
     used[enemy_index] = true;
     int cnt = 1;
     bool fusion_happened = true;
     while (fusion_happened) {
       fusion_happened = false;
-      for (auto ind : indices(predicted_enemies)) {
-        if (predicted_enemies[ind].id.player_num != fusions.back ().id.player_num)
-            continue;
+      for (auto ind : indices(enemies)) {
+        if (enemies[ind].id.player_num != m_fusions.back().id.player_num)
+          continue;
         if (used[ind])
           continue;
-        if ((fusions.back().pos / fusions.back().mass)
-                .squared_distance_to(predicted_enemies[ind].pos) >
-            pow(predicted_enemies[ind].radius +
-                    radius_by_mass(fusions.back().mass),
-                2))
+        if ((m_fusions.back().pos / m_fusions.back().mass)
+                .squared_distance_to(enemies[ind].pos) >
+            pow(enemies[ind].radius + radius_by_mass(m_fusions.back().mass), 2))
           continue;
 
-        if (predicted_enemies[enemy_index].ticks_to_fuse > 50)
+        if (enemies[enemy_index].ticks_to_fuse > 50)
           continue;
 
         ++cnt;
         fusion_happened = true;
         used[ind] = true;
-        fusions.back().pos +=
-            predicted_enemies[ind].pos * predicted_enemies[ind].mass;
-        fusions.back().mass += predicted_enemies[ind].mass;
+        m_fusions.back().pos += enemies[ind].pos * enemies[ind].mass;
+        m_fusions.back().mass += enemies[ind].mass;
       }
     }
 
     if (cnt == 1)
-      fusions.pop_back();
+      m_fusions.pop_back();
     else
-      fusions.back().pos /= fusions.back().mass;
+      m_fusions.back().pos /= m_fusions.back().mass;
   }
+}
+
+int MaxSpeedStrategy::get_scan_precision() const {
+  return static_cast<int>(
+      std::max(20.0 / ctx->my_parts.back().max_speed(ctx->config) /
+                   sqrt(ctx->config.inertia_factor),
+               1.0));
+}
+
+double MaxSpeedStrategy::calc_target_score(const Point &target) {
+  if (ctx->my_parts.empty())
+    return 0.0;
+  int scan_precision = get_scan_precision();
+
+  double score = 0;
+  static std::vector<KnownPlayer> my_predicted_parts;
+  my_predicted_parts = ctx->my_parts;
+  std::set<size_t> alive_parts;
+  for (auto my_part_index : indices(ctx->my_parts))
+    alive_parts.insert(my_part_index);
 
   for (auto part_index : indices(ctx->my_parts)) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
@@ -130,7 +131,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
                                       ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
-    for (auto &enemy : predicted_enemies)
+    for (auto &enemy : m_predicted_enemies.front())
       if (can_eat(enemy.mass, ctx->my_parts[part_index].mass * 0.95)) {
         auto eating_dist =
             eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
@@ -141,7 +142,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
         if (dist < 2 * eating_dist)
           alive_parts.erase(part_index); // what is eaten could never eat
       }
-    for (auto &f : fusions) {
+    for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
         auto r = radius_by_mass(f.mass);
 #if DEBUG_FUSION
@@ -149,7 +150,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
           for (int j = 0; j < 2; ++j) {
             m_debug_lines.push_back(
                 {f.pos + Point{(2 * i - 1) * r, (2 * j - 1) * r}, f.pos});
-            m_debug_line_colors.push_back("black");
+            m_debug_line_colors.emplace_back("black");
           }
 #endif
         auto eating_dist = eating_distance(r, ctx->my_parts[part_index].radius);
@@ -220,11 +221,11 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     }
 
     std::set<size_t> players_taken;
-    for (auto enemy_index : indices(predicted_enemies)) {
+    for (auto enemy_index : indices(m_predicted_enemies[iteration])) {
       if (players_taken.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
-        auto &enemy = predicted_enemies[enemy_index];
+        auto &enemy = m_predicted_enemies[iteration][enemy_index];
         auto &p = ctx->my_parts[part_index];
         if (can_eat(p.mass, my_predicted_parts[part_index].pos, p.radius,
                     enemy.mass, enemy.pos, enemy.radius)) {
@@ -247,12 +248,9 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 #endif
     }
 
-    for (auto &e : predicted_enemies)
-      advance(e, e.speed, scan_precision, ctx->config);
-
     for (auto it = alive_parts.begin(); it != alive_parts.end();) {
       bool do_continue = false;
-      for (auto &enemy : predicted_enemies)
+      for (auto &enemy : m_predicted_enemies[iteration])
         if (can_eat(enemy.mass, ctx->my_parts[*it].mass * 0.95)) {
           auto eating_dist =
               eating_distance(enemy.radius, ctx->my_parts[*it].radius);
@@ -293,6 +291,18 @@ bool MaxSpeedStrategy::is_splitting_dangerous() const {
   // return ctx->config.inertia_factor < 4.0;
 }
 
+void MaxSpeedStrategy::calculate_predicted_enemies() {
+  const auto scan_precision = get_scan_precision();
+  m_predicted_enemies.front() = ctx->enemies;
+  for (auto iteration : indices(m_predicted_enemies)) {
+    if (iteration > 0)
+      m_predicted_enemies[iteration] = m_predicted_enemies[iteration - 1];
+    for (auto &enemy : m_predicted_enemies[iteration]) {
+      advance(enemy, enemy.speed, scan_precision, ctx->config);
+    }
+  }
+}
+
 Response MaxSpeedStrategy::get_response_impl() {
 #ifdef DEBUG_FUTURE_OUTCOMES
   m_debug_lines.clear();
@@ -312,6 +322,9 @@ Response MaxSpeedStrategy::get_response_impl() {
       best_target = target;
     }
   };
+  calculate_predicted_enemies();
+  calculate_fusions(m_predicted_enemies.front());
+
   for (auto angle_try : range(0, angle_partition_count)) {
     double angle =
         min_angle + (max_angle - min_angle) * angle_try / angle_partition_count;
@@ -320,11 +333,23 @@ Response MaxSpeedStrategy::get_response_impl() {
   }
   check_target(ctx->my_center);
   auto r = Response{}.target(best_target);
+
+  double max_enemy_mass = 0.0;
+  if (!m_fusions.empty()) {
+    auto get_mass = [](const auto &p) { return p.mass; };
+    max_enemy_mass =
+        std::max(max_enemy_mass,
+                 0.9 * get_mass(*max_element_op(m_fusions.begin(),
+                                                m_fusions.end(), get_mass)));
+  }
+  if (!ctx->enemies.empty())
+    max_enemy_mass = std::max(max_enemy_mass, ctx->enemies.front().mass);
+
   r.debug("Score: " + std::to_string(best_angle_score));
   if (!is_splitting_dangerous() &&
       ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
-      (ctx->enemies.empty() ||
-       ctx->enemies.front().mass < 0.5 * ctx->my_parts.front().mass))
+      max_enemy_mass <
+          ctx->my_parts.front().mass / 2. / constant::eating_mass_coeff)
     r.split();
 #ifdef CUSTOM_DEBUG
 #if 0

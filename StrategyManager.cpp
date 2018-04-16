@@ -5,8 +5,8 @@
 #include "Response.h"
 
 #include "MaxSpeedStrategy.h"
-#include <fstream>
 #include "range.hpp"
+#include <fstream>
 using namespace util::lang;
 
 #ifdef _MSC_VER
@@ -38,6 +38,8 @@ void StrategyManager::run() {
 
 json StrategyManager::on_tick(const json &data) {
   m_context.update(data);
+  if (m_context.my_parts.empty())
+    return {};
   return m_strategy->get_response(m_context).to_json();
 }
 
@@ -55,7 +57,7 @@ void StrategyManager::run_feed(const std::string &path) {
     std::cout << "Parsed " << line << '\n';
     std::getline(ifs, line);
     m_context.update(json::parse(line));
-    std::cout << m_strategy->get_response(m_context).to_json () << '\n';
+    std::cout << m_strategy->get_response(m_context).to_json() << '\n';
     std::getline(ifs, line); // answer
     std::getline(ifs, line); // empty line
   }

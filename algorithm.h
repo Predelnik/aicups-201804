@@ -27,13 +27,13 @@ ForwardIteratorType min_max_element_op(ForwardIteratorType begin,
 template <typename ForwardIteratorType, typename Op>
 ForwardIteratorType min_element_op(ForwardIteratorType begin,
                                    ForwardIteratorType end, Op func) {
-  return detail::min_max_element_op(begin, end, func,
-                                    std::less<decltype(func(*begin))>{});
+  return ::detail::min_max_element_op(begin, end, func,
+                                      std::less<decltype(func(*begin))>{});
 };
 
 template <typename ForwardIteratorType, typename Op>
 ForwardIteratorType max_element_op(ForwardIteratorType begin,
                                    ForwardIteratorType end, Op func) {
-  return detail::min_max_element_op(begin, end, func,
-                                    std::greater<decltype(func(*begin))>{});
+  return ::detail::min_max_element_op(begin, end, func,
+                                      std::greater<decltype(func(*begin))>{});
 };
