@@ -2,6 +2,7 @@
 #include "../nlohmann/json.hpp"
 #include "GameConfig.h"
 
+#include "KnownPlayer.h"
 #include "Object.h"
 #include "Point.h"
 #include <random>
@@ -15,12 +16,19 @@ class Player;
 class Virus;
 class Enemy;
 
+class EnemyVision {
+public:
+  KnownPlayer state;
+  int tick = 0;
+};
+
 class Context {
 public:
   Context();
   ~Context();
   void initialize(const json &data);
   void update(const json &data);
+  void remove_enemies_older_than(int n_ticks) const;
 
 private:
   void fill_objects(const json &data);
@@ -30,6 +38,8 @@ private:
   void update_speed_data();
   void update_food_map();
   void update_enemy_speed();
+  void clean_up_eaten_or_fused_enemies();
+  void update_enemies_by_id();
   void update_caches();
   void update_my_center();
 
@@ -42,6 +52,9 @@ public:
   std::vector<Virus> viruses;
 
   std::multimap<Point, Food *> food_map;
+  std::map<PartId, KnownPlayer> prev_tick_enemy_by_id;
+  mutable std::map<PartId, EnemyVision> enemy_by_id;
+  mutable std::multimap<int, PartId> enemy_seen_by_tick;
 
   Point my_center;
   double my_radius;
@@ -52,6 +65,5 @@ public:
   KnownPlayer *my_largest_part = nullptr;
 
 private:
-  std::map<PartId, KnownPlayer> m_prev_enemy_states;
   std::default_random_engine m_re;
 };

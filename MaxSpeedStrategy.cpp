@@ -15,7 +15,8 @@ using namespace util::lang;
 
 #ifdef CUSTOM_DEBUG
 #define DEBUG_FUTURE_OUTCOMES 0
-#define DEBUG_FUSION 1
+#define DEBUG_FUSION 0
+#define DEBUG_MEMORIZED_ENEMIES 0
 #endif
 
 MaxSpeedStrategy::MaxSpeedStrategy()
@@ -97,6 +98,12 @@ int MaxSpeedStrategy::get_scan_precision() const {
                1.0));
 }
 
+static std::string to_hex(int x) {
+  std::stringstream stream;
+  stream << std::hex << std::setfill('0') << std::setw(2) << x;
+  return stream.str();
+};
+
 double MaxSpeedStrategy::calc_target_score(const Point &target) {
   if (ctx->my_parts.empty())
     return 0.0;
@@ -145,14 +152,6 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
         auto r = radius_by_mass(f.mass);
-#if DEBUG_FUSION
-        for (int i = 0; i < 2; ++i)
-          for (int j = 0; j < 2; ++j) {
-            m_debug_lines.push_back(
-                {f.pos + Point{(2 * i - 1) * r, (2 * j - 1) * r}, f.pos});
-            m_debug_line_colors.emplace_back("black");
-          }
-#endif
         auto eating_dist = eating_distance(r, ctx->my_parts[part_index].radius);
         auto dist = f.pos.distance_to(my_predicted_parts[part_index].pos);
         if (dist < 3 * eating_dist) {
@@ -161,6 +160,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       }
     }
   }
+
   double deviation = 0.0;
   for (auto &p : my_predicted_parts)
     deviation += p.pos.squared_distance_to(ctx->my_center);
@@ -272,12 +272,6 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
   auto s = m_debug_line_colors.size();
   m_debug_line_colors.resize(m_debug_lines.size());
   using namespace std::string_literals;
-
-  auto to_hex = [](int x) {
-    std::stringstream stream;
-    stream << std::hex << std::setfill('0') << std::setw(2) << x;
-    return stream.str();
-  };
   std::fill(m_debug_line_colors.begin() + s, m_debug_line_colors.end(),
             "#"s + to_hex(std::clamp(0, static_cast<int>(-score), 255)) +
                 to_hex(std::clamp(0, static_cast<int>(score / 10.), 255)) +
@@ -313,6 +307,32 @@ Response MaxSpeedStrategy::get_response_impl() {
 
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
+
+#if DEBUG_FUSION
+  for (int i = 0; i < 2; ++i)
+    for (int j = 0; j < 2; ++j) {
+      m_debug_lines.push_back(
+          {f.pos + Point{(2 * i - 1) * r, (2 * j - 1) * r}, f.pos});
+      m_debug_line_colors.emplace_back("black");
+    }
+#endif
+
+#if DEBUG_MEMORIZED_ENEMIES
+  for (auto &[id, enemy_vision] : ctx->enemy_by_id)
+    for (int i = 0; i < 2; ++i)
+      for (int j = 0; j < 2; ++j) {
+        m_debug_lines.push_back(
+            {enemy_vision.state.pos +
+                 Point{(2 * i - 1) * enemy_vision.state.radius,
+                       (2 * j - 1) * enemy_vision.state.radius},
+             enemy_vision.state.pos});
+        std::string s = "#";
+        auto h = to_hex ((ctx->tick - enemy_vision.tick) * 255 / 200);
+        for (auto i : range (0, 3))
+            s += h;
+        m_debug_line_colors.emplace_back(s);
+      }
+#endif
 
   auto check_target = [&](const Point &target) {
     double score = calc_target_score(target);
@@ -402,6 +422,7 @@ void MaxSpeedStrategy::update() {
   remove_stale_food();
   remove_eaten_food();
   add_new_food_to_seen();
+  ctx->remove_enemies_older_than(200);
 }
 
 Response MaxSpeedStrategy::get_response(const Context &context) {

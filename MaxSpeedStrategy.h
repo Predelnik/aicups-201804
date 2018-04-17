@@ -16,6 +16,12 @@ struct FoodSeen {
   int tick;
 };
 
+struct EnemySeen
+{
+    PartId id;
+    int tick;
+};
+
 class MaxSpeedStrategy : public Strategy {
   constexpr static int food_shelf_life = 350;
   constexpr static int angle_partition_count = DEBUG_RELEASE_VALUE(20, 40);
@@ -47,6 +53,9 @@ private:
   std::vector<KnownPlayer> m_fusions;
   std::array<std::vector<KnownPlayer>, future_scan_iteration_count>
       m_predicted_enemies;
+
+  std::deque<EnemySeen> m_enemies_seen;
+  std::multiset<double> m_enemies_masses;
 #ifdef CUSTOM_DEBUG
   std::vector<std::array<Point, 2>> m_debug_lines;
   std::vector<std::string> m_debug_line_colors;
