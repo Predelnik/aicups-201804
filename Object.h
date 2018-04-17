@@ -44,6 +44,10 @@ public:
     return std::tie(player_num, part_num) <
            std::tie(other.player_num, other.part_num);
   }
+  bool operator==(const PartId &other) const {
+    return std::tie(player_num, part_num) ==
+           std::tie(other.player_num, other.part_num);
+  }
 };
 
 class Player : public ObjectBase {

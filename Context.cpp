@@ -3,10 +3,11 @@
 #include "Object.h"
 #include "overload.h"
 
+#include "Defines.h"
 #include "GameHelpers.h"
 #include "algorithm.h"
+#include <set>
 #include <variant>
-#include "Defines.h"
 
 namespace {
 std::vector<KnownPlayer> to_my_parts(const json &data) {
@@ -33,6 +34,16 @@ void Context::update(const json &data) {
       enemies.begin(), enemies.end(),
       [](const auto &lhs, const auto &rhs) { return lhs.mass > rhs.mass; });
   update_caches();
+}
+
+void Context::remove_enemies_older_than(int n_ticks) const {
+  for (auto it = enemy_seen_by_tick.begin(); it != enemy_seen_by_tick.end();) {
+    if (it->first < tick - n_ticks) {
+      enemy_by_id.erase(it->second);
+      it = enemy_seen_by_tick.erase(it);
+    } else
+      break;
+  }
 }
 
 void Context::fill_objects(const json &data) {
@@ -90,11 +101,12 @@ void Context::update_food_map() {
 
 void Context::update_enemy_speed() {
   for (auto &e : enemies) {
-    auto it = m_prev_enemy_states.find(e.id);
-    e.speed = it != m_prev_enemy_states.end() ? e.pos - it->second.pos
-                                     : (my_center - e.pos).normalized() *
-                                           max_speed(e.mass, config);
-    if (it != m_prev_enemy_states.end()) {
+    auto it = prev_tick_enemy_by_id.find(e.id);
+    e.speed =
+        it != prev_tick_enemy_by_id.end()
+            ? e.pos - it->second.pos
+            : (my_center - e.pos).normalized() * max_speed(e.mass, config);
+    if (it != prev_tick_enemy_by_id.end()) {
       if (e.mass > it->second.mass * 1.75)
         e.ticks_to_fuse = config.ticks_til_fusion;
       else {
@@ -102,13 +114,62 @@ void Context::update_enemy_speed() {
         --e.ticks_to_fuse;
       }
     } else
-      e.ticks_to_fuse = std::uniform_int_distribution<int> (0, config.ticks_til_fusion)(m_re);
+      e.ticks_to_fuse =
+          std::uniform_int_distribution<int>(0, config.ticks_til_fusion)(m_re);
   }
+}
 
-  m_prev_enemy_states.clear();
-
+void Context::clean_up_eaten_or_fused_enemies() {
+  std::set<PartId> current_ids;
   for (auto &e : enemies)
-    m_prev_enemy_states[e.id] = e;
+    current_ids.insert(e.id);
+
+  for (auto &p : prev_tick_enemy_by_id) {
+    bool should_be_visible = false;
+    for (auto &part : my_parts) {
+      if (current_ids.count(p.first) == 0 &&
+          p.second.pos.is_in_circle(part.visibility_center(),
+                                    part.visibility_radius(static_cast<int> (my_parts.size())) *
+                                        0.9)) {
+        should_be_visible = true;
+        break;
+      }
+    }
+    if (should_be_visible) {
+      // supposedly was eaten or fused
+      auto it = enemy_by_id.find(p.first);
+      if (it != enemy_by_id.end()) {
+        auto rng = enemy_seen_by_tick.equal_range(it->second.tick);
+        for (auto jt = rng.first; jt != rng.second;)
+          if (jt->second == p.second.id)
+            jt = enemy_seen_by_tick.erase(jt);
+          else
+            ++jt;
+        enemy_by_id.erase(it);
+      }
+    }
+  }
+}
+
+void Context::update_enemies_by_id() {
+  clean_up_eaten_or_fused_enemies();
+
+  prev_tick_enemy_by_id.clear();
+
+  for (auto &e : enemies) {
+    prev_tick_enemy_by_id[e.id] = e;
+    auto it = enemy_by_id.find(e.id);
+    if (it != enemy_by_id.end()) {
+      auto p = enemy_seen_by_tick.equal_range(it->second.tick);
+      for (auto jt = p.first; jt != p.second;)
+        if (jt->second == e.id)
+          jt = enemy_seen_by_tick.erase(jt);
+        else
+          ++jt;
+    }
+    enemy_by_id[e.id] = {e, tick};
+    enemy_seen_by_tick.insert({tick, e.id});
+  }
 }
 
 void Context::update_caches() {
@@ -119,6 +180,7 @@ void Context::update_caches() {
   update_speed_data();
   update_food_map();
   update_enemy_speed();
+  update_enemies_by_id();
 }
 
 void Context::update_my_center() {
