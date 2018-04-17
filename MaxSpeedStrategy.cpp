@@ -138,17 +138,6 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
                                       ctx->config) /
              (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
              ctx->my_parts.size();
-    for (auto &enemy : m_predicted_enemies.front())
-      if (can_eat(enemy.mass, ctx->my_parts[part_index].mass * 0.95)) {
-        auto eating_dist =
-            eating_distance(enemy.radius, ctx->my_parts[part_index].radius);
-        auto dist = enemy.pos.distance_to(my_predicted_parts[part_index].pos);
-        if (dist < 6 * eating_dist) {
-          score -= (6 * eating_dist - dist) * 5000;
-        }
-        if (dist < 2 * eating_dist)
-          alive_parts.erase(part_index); // what is eaten could never eat
-      }
     for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
         auto r = radius_by_mass(f.mass);
@@ -255,9 +244,9 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
           auto eating_dist =
               eating_distance(enemy.radius, ctx->my_parts[*it].radius);
           auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
-          if (dist < eating_dist * 1.2) {
+          if (dist < eating_dist * 2.0) {
             it = alive_parts.erase(it); // what is eaten could never eat
-            score -= 10000.0;
+            score -= (eating_dist * 2.0 - dist) * 5000.0;
             do_continue = true;
             break;
           }
