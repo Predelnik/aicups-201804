@@ -27,6 +27,7 @@ class MaxSpeedStrategy : public Strategy {
   constexpr static int angle_partition_count = DEBUG_RELEASE_VALUE(20, 40);
   constexpr static int future_scan_iteration_count =
       DEBUG_RELEASE_VALUE(10, 20);
+  constexpr static int remember_enemies_tick_count = 100;
 
 public:
   MaxSpeedStrategy();
