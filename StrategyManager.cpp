@@ -57,7 +57,8 @@ void StrategyManager::run_feed(const std::string &path) {
     std::cout << "Parsed " << line << '\n';
     std::getline(ifs, line);
     m_context.update(json::parse(line));
-    std::cout << m_strategy->get_response(m_context).to_json() << '\n';
+    if (!m_context.my_parts.empty())
+      std::cout << m_strategy->get_response(m_context).to_json() << '\n';
     std::getline(ifs, line); // answer
     std::getline(ifs, line); // empty line
   }
