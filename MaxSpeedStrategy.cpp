@@ -316,7 +316,7 @@ Response MaxSpeedStrategy::get_response_impl() {
                        (2 * j - 1) * enemy_vision.state.radius},
              enemy_vision.state.pos});
         std::string s = "#";
-        auto h = to_hex ((ctx->tick - enemy_vision.tick) * 255 / 200);
+        auto h = to_hex ((ctx->tick - enemy_vision.tick) * 255 / remember_enemies_tick_count);
         for (auto i : range (0, 3))
             s += h;
         m_debug_line_colors.emplace_back(s);
@@ -418,7 +418,7 @@ void MaxSpeedStrategy::update() {
   remove_stale_food();
   remove_eaten_food();
   add_new_food_to_seen();
-  ctx->remove_enemies_older_than(200);
+  ctx->remove_enemies_older_than(remember_enemies_tick_count);
 }
 
 Response MaxSpeedStrategy::get_response(const Context &context) {
