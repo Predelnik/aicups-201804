@@ -357,8 +357,9 @@ Response MaxSpeedStrategy::get_response_impl() {
   for (auto it = ctx->enemy_seen_by_tick.begin (); it != ctx->enemy_seen_by_tick.end (); ++it)
   {
     if (it->first < ctx->tick - 50)
-        break;
-    max_enemy_mass = std::max (ctx->enemy_by_id[it->second].state.mass, max_enemy_mass);
+      continue;
+    max_enemy_mass =
+        std::max(ctx->enemy_by_id[it->second].state.mass, max_enemy_mass);
   }
 
   r.debug("Score: " + std::to_string(best_angle_score));
