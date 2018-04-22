@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include <vector>
+#include "Const.h"
 
 class Matrix;
 
@@ -35,6 +36,8 @@ public:
   }
   Point normalized() const {
     double len = length();
+    if (len < constant::eps)
+        return {x, y};
     return {x / len, y / len};
   }
 

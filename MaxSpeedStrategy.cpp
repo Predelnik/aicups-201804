@@ -177,12 +177,14 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     if (speed_loss > speed_loss_limit)
       change_score(-((speed_loss - speed_loss_limit) * 25000.0),
                    "Speed Limit Loss");
+
+    auto dist_to_wall = distance_to_nearest_wall(my_predicted_parts[part_index].pos,
+                            ctx->config);
+    auto half_min_size = (std::min(ctx->config.game_width, ctx->config.game_height) / 2.);
     change_score(
-        500. *
-            distance_to_nearest_wall(my_predicted_parts[part_index].pos,
-                                     ctx->config) /
-            (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
-            ctx->my_parts.size(),
+        500. * dist_to_wall
+             / half_min_size
+             / ctx->my_parts.size(),
         "Bonus for Center");
     for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
