@@ -71,8 +71,6 @@ void MaxSpeedStrategy::calculate_fusions(
     while (fusion_happened) {
       fusion_happened = false;
       for (auto ind : indices(enemies)) {
-        if (enemies[ind].id.player_num != m_fusions.back().id.player_num)
-          continue;
         if (m_fused[ind])
           continue;
         if ((m_fusions.back().pos / m_fusions.back().mass)
@@ -80,8 +78,19 @@ void MaxSpeedStrategy::calculate_fusions(
             pow(1.1 * (enemies[ind].radius + radius_by_mass(m_fusions.back().mass)), 2))
           continue;
 
-        if (enemies[enemy_index].ticks_to_fuse > 50)
-          continue;
+        if (enemies[ind].id.player_num == m_fusions.back().id.player_num)
+        {
+          if (enemies[enemy_index].ticks_to_fuse > 50)
+            continue;
+        }
+        else
+        {
+            // fusing of different enemies (aka eating)
+            auto m1 = enemies[ind].mass;
+            auto m2 = m_fusions.back ().mass;
+            if (std::max (m1, m2) / std::min (m1, m2) < constant::eating_mass_coeff * 0.95)
+                continue;
+        }
 
         ++cnt;
         fusion_happened = true;
