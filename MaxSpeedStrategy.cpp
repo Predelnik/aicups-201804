@@ -235,32 +235,32 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 
     for (auto &e : ctx->enemies) {
       auto check_rect = [&](const std::array<Point, 2> &rect) {
-        if (fabs (rect[0].x - rect[1].x) * fabs (rect[0].y - rect[1].y) > 7600.0)
-            return;
+        if (fabs(rect[0].x - rect[1].x) * fabs(rect[0].y - rect[1].y) > 7600.0)
+          return;
 #ifdef CUSTOM_DEBUG
-        if constexpr (debug_rect_between_wall_and_enemy)
-            {
-              m_debug_lines.push_back({Point{rect[0].x, rect[0].y}, Point{rect[1].x, rect[0].y}});
-              m_debug_lines.push_back({Point{rect[0].x, rect[1].y}, Point{rect[1].x, rect[1].y}});
-              m_debug_lines.push_back({Point{rect[0].x, rect[0].y}, Point{rect[0].x, rect[1].y}});
-              m_debug_lines.push_back({Point{rect[1].x, rect[0].y}, Point{rect[1].x, rect[1].y}});
-              for (auto i : range(0, 4))
-                m_debug_line_colors.emplace_back("#000");
-            }
+        if constexpr (debug_rect_between_wall_and_enemy) {
+          m_debug_lines.push_back(
+              {Point{rect[0].x, rect[0].y}, Point{rect[1].x, rect[0].y}});
+          m_debug_lines.push_back(
+              {Point{rect[0].x, rect[1].y}, Point{rect[1].x, rect[1].y}});
+          m_debug_lines.push_back(
+              {Point{rect[0].x, rect[0].y}, Point{rect[0].x, rect[1].y}});
+          m_debug_lines.push_back(
+              {Point{rect[1].x, rect[0].y}, Point{rect[1].x, rect[1].y}});
+          for (auto i : range(0, 4))
+            m_debug_line_colors.emplace_back("#000");
+        }
 #endif
-        if (mp.pos.is_in_rect(rect))
-            {
-              change_score (-20000.0, "Being stuck between wall and enemy");
-            }
+        if (mp.pos.is_in_rect(rect)) {
+          change_score(-20000.0, "Being stuck between wall and enemy");
+        }
       };
       if (can_eat(e.mass, ctx->my_parts[part_index].mass)) {
         auto r = e.radius * 1.1;
-        check_rect({Point{0, e.pos.y - r},
-                    Point{e.pos.x + r, e.pos.y + r}});
+        check_rect({Point{0, e.pos.y - r}, Point{e.pos.x + r, e.pos.y + r}});
         check_rect({Point{e.pos.x - r, e.pos.y - r},
                     Point{ctx->config.game_width, e.pos.y + r}});
-        check_rect({Point{e.pos.x - r, 0},
-                    Point{e.pos.x + r, e.pos.y + r}});
+        check_rect({Point{e.pos.x - r, 0}, Point{e.pos.x + r, e.pos.y + r}});
         check_rect({Point{e.pos.x - r, e.pos.y - r},
                     Point{e.pos.x + r, ctx->config.game_height}});
       }
@@ -286,18 +286,31 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     };
     check_food_like(m_food_seen, food_taken, ctx->config.food_mass);
     check_food_like(ctx->ejections, ejection_taken, constant::ejection_mass);
-    if (!ctx->enemies.empty() || is_splitting_dangerous()) {
+    if ((!ctx->enemies.empty() &&
+         ctx->my_parts.size() < ctx->config.max_fragments_cnt) ||
+        is_splitting_dangerous()) {
       for (auto virus_index : indices(ctx->viruses)) {
         if (virus_bumped.count(virus_index))
           continue;
         for (auto part_index : alive_parts) {
-          if (is_virus_dangerous_for(ctx->config, ctx->viruses[virus_index].pos,
-                                     my_predicted_parts[part_index].pos,
-                                     ctx->my_parts[part_index].radius * 1.05,
-                                     ctx->my_parts[part_index].mass * 1.05)) {
-            const double score_per_virus =
-                is_splitting_dangerous() ? 10000 : 300;
+          auto mass = ctx->my_parts[part_index].mass * 1.05;
+          if (mass < constant::virus_danger_mass)
+            continue;
+
+          auto radius = ctx->my_parts[part_index].radius * 1.05;
+
+          if (ctx->config.virus_radius > radius)
+            continue;
+
+          auto dangerous_dist =
+              ctx->config.virus_radius * constant::virus_hurt_factor + radius;
+
+          auto dist = ctx->viruses[virus_index].pos.distance_to(
+              my_predicted_parts[part_index].pos);
+          if (dist < 2 * dangerous_dist) {
+            const double score_per_virus = 1000;
             change_score(-(future_scan_iteration_count - iteration) *
+                             ((2 * dangerous_dist - dist) / dangerous_dist) *
                              score_per_virus,
                          "Virus bumping in presence of the enemy penalty");
             virus_bumped.insert(virus_index);
