@@ -115,7 +115,7 @@ void Context::update_enemy_speed() {
       }
     } else
       e.ticks_to_fuse =
-          std::uniform_int_distribution<int>(0, config.ticks_til_fusion / 3)(m_re);
+          std::uniform_int_distribution<int>(0, config.ticks_til_fusion / 6)(m_re);
   }
 }
 
