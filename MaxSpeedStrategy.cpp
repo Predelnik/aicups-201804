@@ -357,9 +357,9 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
               eating_distance(enemy.radius, ctx->my_parts[*it].radius);
           auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
           if (dist < eating_dist * 2.0) {
-            it = alive_parts.erase(it); // what is eaten could never eat
-            change_score(-(eating_dist * 2.0 - dist) * 5000.0,
+            change_score(-(eating_dist * 2.0 - dist) * 100.0 * ctx->my_parts[*it].mass,
                          "Being eaten penalty");
+            it = alive_parts.erase(it); // what is eaten could never eat
             do_continue = true;
             break;
           }
