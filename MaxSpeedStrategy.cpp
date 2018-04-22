@@ -54,9 +54,10 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
 
 void MaxSpeedStrategy::calculate_fusions(
     const std::vector<KnownPlayer> &enemies) {
-  std::vector<bool> used(enemies.size());
+    m_fused.resize (enemies.size ());
+    std::fill (m_fused.begin (), m_fused.end(), 0);
   for (auto enemy_index : indices(enemies)) {
-    if (used[enemy_index])
+    if (m_fused[enemy_index])
       continue;
     if (enemies[enemy_index].ticks_to_fuse > 50)
       continue;
@@ -64,7 +65,7 @@ void MaxSpeedStrategy::calculate_fusions(
     m_fusions.clear();
     m_fusions.push_back(enemies[enemy_index]);
     m_fusions.back().pos *= m_fusions.back().mass;
-    used[enemy_index] = true;
+    m_fused[enemy_index] = 2;
     int cnt = 1;
     bool fusion_happened = true;
     while (fusion_happened) {
@@ -72,11 +73,11 @@ void MaxSpeedStrategy::calculate_fusions(
       for (auto ind : indices(enemies)) {
         if (enemies[ind].id.player_num != m_fusions.back().id.player_num)
           continue;
-        if (used[ind])
+        if (m_fused[ind])
           continue;
         if ((m_fusions.back().pos / m_fusions.back().mass)
                 .squared_distance_to(enemies[ind].pos) >
-            pow(enemies[ind].radius + radius_by_mass(m_fusions.back().mass), 2))
+            pow(1.1 * (enemies[ind].radius + radius_by_mass(m_fusions.back().mass)), 2))
           continue;
 
         if (enemies[enemy_index].ticks_to_fuse > 50)
@@ -84,14 +85,17 @@ void MaxSpeedStrategy::calculate_fusions(
 
         ++cnt;
         fusion_happened = true;
-        used[ind] = true;
+        m_fused[ind] = true;
         m_fusions.back().pos += enemies[ind].pos * enemies[ind].mass;
         m_fusions.back().mass += enemies[ind].mass;
       }
     }
 
     if (cnt == 1)
+    {
       m_fusions.pop_back();
+      m_fused[enemy_index] = 1;
+    }
     else
       m_fusions.back().pos /= m_fusions.back().mass;
   }
@@ -263,6 +267,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 
     std::set<size_t> players_taken;
     for (auto enemy_index : indices(m_predicted_enemies[iteration])) {
+      if (m_fused[enemy_index] == 2)
+          continue;
       if (players_taken.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
