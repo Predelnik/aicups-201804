@@ -24,6 +24,7 @@ using namespace std::string_literals;
 #endif
 
 constexpr bool debug_bump_prediction = false;
+constexpr bool debug_rect_between_wall_and_enemy = false;
 
 MaxSpeedStrategy::MaxSpeedStrategy()
     : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
@@ -54,8 +55,8 @@ Response MaxSpeedStrategy::move_by_vector(const Point &v) {
 
 void MaxSpeedStrategy::calculate_fusions(
     const std::vector<KnownPlayer> &enemies) {
-    m_fused.resize (enemies.size ());
-    std::fill (m_fused.begin (), m_fused.end(), 0);
+  m_fused.resize(enemies.size());
+  std::fill(m_fused.begin(), m_fused.end(), 0);
   for (auto enemy_index : indices(enemies)) {
     if (m_fused[enemy_index])
       continue;
@@ -75,21 +76,21 @@ void MaxSpeedStrategy::calculate_fusions(
           continue;
         if ((m_fusions.back().pos / m_fusions.back().mass)
                 .squared_distance_to(enemies[ind].pos) >
-            pow(1.1 * (enemies[ind].radius + radius_by_mass(m_fusions.back().mass)), 2))
+            pow(1.1 * (enemies[ind].radius +
+                       radius_by_mass(m_fusions.back().mass)),
+                2))
           continue;
 
-        if (enemies[ind].id.player_num == m_fusions.back().id.player_num)
-        {
+        if (enemies[ind].id.player_num == m_fusions.back().id.player_num) {
           if (enemies[enemy_index].ticks_to_fuse > 50)
             continue;
-        }
-        else
-        {
-            // fusing of different enemies (aka eating)
-            auto m1 = enemies[ind].mass;
-            auto m2 = m_fusions.back ().mass;
-            if (std::max (m1, m2) / std::min (m1, m2) < constant::eating_mass_coeff * 0.95)
-                continue;
+        } else {
+          // fusing of different enemies (aka eating)
+          auto m1 = enemies[ind].mass;
+          auto m2 = m_fusions.back().mass;
+          if (std::max(m1, m2) / std::min(m1, m2) <
+              constant::eating_mass_coeff * 0.95)
+            continue;
         }
 
         ++cnt;
@@ -100,12 +101,10 @@ void MaxSpeedStrategy::calculate_fusions(
       }
     }
 
-    if (cnt == 1)
-    {
+    if (cnt == 1) {
       m_fusions.pop_back();
       m_fused[enemy_index] = 1;
-    }
-    else
+    } else
       m_fusions.back().pos /= m_fusions.back().mass;
   }
 }
@@ -178,14 +177,12 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       change_score(-((speed_loss - speed_loss_limit) * 25000.0),
                    "Speed Limit Loss");
 
-    auto dist_to_wall = distance_to_nearest_wall(my_predicted_parts[part_index].pos,
-                            ctx->config);
-    auto half_min_size = (std::min(ctx->config.game_width, ctx->config.game_height) / 2.);
-    change_score(
-        500. * dist_to_wall
-             / half_min_size
-             / ctx->my_parts.size(),
-        "Bonus for Center");
+    auto dist_to_wall = distance_to_nearest_wall(
+        my_predicted_parts[part_index].pos, ctx->config);
+    auto half_min_size =
+        (std::min(ctx->config.game_width, ctx->config.game_height) / 2.);
+    change_score(500. * dist_to_wall / half_min_size / ctx->my_parts.size(),
+                 "Bonus for Center");
     for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
         dangerous_enemy_present = true;
@@ -235,6 +232,37 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 
     if (distance_to_nearest_wall(mp.pos, mp.radius, ctx->config) < 1e-5)
       change_score(-100000.0, "Bump into walls penalty");
+
+    for (auto &e : ctx->enemies) {
+      auto check_rect = [&](const std::array<Point, 2> &rect) {
+        if (fabs (rect[0].x - rect[1].x) * fabs (rect[0].y - rect[1].y) > 7600.0)
+            return;
+        if constexpr (debug_rect_between_wall_and_enemy)
+            {
+              m_debug_lines.push_back({Point{rect[0].x, rect[0].y}, Point{rect[1].x, rect[0].y}});
+              m_debug_lines.push_back({Point{rect[0].x, rect[1].y}, Point{rect[1].x, rect[1].y}});
+              m_debug_lines.push_back({Point{rect[0].x, rect[0].y}, Point{rect[0].x, rect[1].y}});
+              m_debug_lines.push_back({Point{rect[1].x, rect[0].y}, Point{rect[1].x, rect[1].y}});
+              for (auto i : range(0, 4))
+                m_debug_line_colors.emplace_back("#000");
+            }
+        if (mp.pos.is_in_rect(rect))
+            {
+              change_score (-20000.0, "Being stuck between wall and enemy");
+            }
+      };
+      if (can_eat(e.mass, ctx->my_parts[part_index].mass)) {
+        auto r = e.radius * 1.1;
+        check_rect({Point{0, e.pos.y - r},
+                    Point{e.pos.x + r, e.pos.y + r}});
+        check_rect({Point{e.pos.x - r, e.pos.y - r},
+                    Point{ctx->config.game_width, e.pos.y + r}});
+        check_rect({Point{e.pos.x - r, 0},
+                    Point{e.pos.x + r, e.pos.y + r}});
+        check_rect({Point{e.pos.x - r, e.pos.y - r},
+                    Point{e.pos.x + r, ctx->config.game_height}});
+      }
+    }
   }
 
   for (auto iteration : range(0, future_scan_iteration_count)) {
@@ -279,7 +307,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     std::set<size_t> players_taken;
     for (auto enemy_index : indices(m_predicted_enemies[iteration])) {
       if (m_fused[enemy_index] == 2)
-          continue;
+        continue;
       if (players_taken.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
