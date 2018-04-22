@@ -7,6 +7,7 @@
 #include "MaxSpeedStrategy.h"
 #include "range.hpp"
 #include <fstream>
+#include "debug.h"
 using namespace util::lang;
 
 #ifdef _MSC_VER
@@ -43,13 +44,18 @@ json StrategyManager::on_tick(const json &data) {
   return m_strategy->get_response(m_context).to_json();
 }
 
-void StrategyManager::run_feed(const std::string &path) {
+void StrategyManager::run_feed(const std::string &path, int tick) {
   std::ifstream ifs(path.c_str());
   if (!ifs)
     return;
   std::string line;
   std::getline(ifs, line);
   m_context.initialize(json::parse(line));
+  if (tick > 0)
+  {
+      m_context.debug_tick_start = tick;
+      m_context.debug_tick_end = tick + 10;
+  }
   m_strategy->initialize(m_context.config);
   std::getline(ifs, line); // empty line
   while (ifs) {
@@ -61,6 +67,10 @@ void StrategyManager::run_feed(const std::string &path) {
       std::cout << m_strategy->get_response(m_context).to_json() << '\n';
       std::getline(ifs, line); // answer
     }
+#ifdef _MSC_VER
+  if (is_debugger_present() && m_context.is_debug_tick())
+    __debugbreak();
+#endif
     std::getline(ifs, line); // empty line
   }
 }

@@ -116,3 +116,15 @@ double radius_by_mass(double mass)
 {
     return 2 * sqrt (mass);
 }
+
+double distance_to_nearest_wall_by_x(const Point &p, double radius,
+                                     const GameConfig &config) {
+  return std::min(std::max(p.x - radius, 0.0),
+                  std::max(config.game_width - p.x - radius, 0.0));
+}
+
+double distance_to_nearest_wall_by_y(const Point &p, double radius,
+                                     const GameConfig &config) {
+  return std::min(std::max(p.y - radius, 0.0),
+                  std::max(config.game_height - p.y - radius, 0.0));
+}

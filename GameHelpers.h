@@ -32,3 +32,6 @@ bool is_object_reachable(const GameConfig &config, double my_radius,
                          const Point &object_pos);
 
 double radius_by_mass (double mass);
+
+double distance_to_nearest_wall_by_x(const Point &p, double radius, const GameConfig &config);
+double distance_to_nearest_wall_by_y(const Point &p, double radius, const GameConfig &config);

@@ -9,15 +9,21 @@
 #include <set>
 #include <unordered_set>
 
+#include "debug.h"
 #include "range.hpp"
+#include <iostream>
 #include <queue>
+
 using namespace util::lang;
+using namespace std::string_literals;
 
 #ifdef CUSTOM_DEBUG
 #define DEBUG_FUTURE_OUTCOMES 0
 #define DEBUG_FUSION 0
 #define DEBUG_MEMORIZED_ENEMIES 0
 #endif
+
+constexpr bool debug_bump_prediction = false;
 
 MaxSpeedStrategy::MaxSpeedStrategy()
     : m_re(DEBUG_RELEASE_VALUE(0, std::random_device()())) {}
@@ -109,12 +115,35 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     return 0.0;
   int scan_precision = get_scan_precision();
 
+#ifdef CUSTOM_DEBUG
+  std::map<std::string, double> reasons_stacked;
+#endif
+
   double score = 0;
+  auto change_score = [&](double amount, const char *reason) {
+    score += amount;
+    if (ctx->is_debug_tick()) {
+      reasons_stacked[reason] += amount;
+    }
+  };
   static std::vector<KnownPlayer> my_predicted_parts;
   my_predicted_parts = ctx->my_parts;
   std::set<size_t> alive_parts;
   for (auto my_part_index : indices(ctx->my_parts))
     alive_parts.insert(my_part_index);
+
+  bool dangerous_enemy_present = false;
+  for (auto [tick, enemy_id] : ctx->enemy_ids_seen_by_tick) {
+    if (tick < ctx->tick - 50)
+      continue;
+    for (auto &p : ctx->my_parts)
+      if (can_eat(ctx->enemy_by_id[enemy_id].state.mass, p.mass * 0.95)) {
+        dangerous_enemy_present = true;
+        break;
+      }
+    if (dangerous_enemy_present)
+      break;
+  }
 
   for (auto part_index : indices(ctx->my_parts)) {
     auto cur_speed = ctx->my_parts[part_index].speed.length();
@@ -131,20 +160,24 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
             100.0) /* with huge speed factors it's fine to lose speed */
       speed_loss_limit = 0.25;
     if (speed_loss > speed_loss_limit)
-      score -= ((speed_loss - speed_loss_limit) * 25000.0);
-
-    score += 500. *
-             distance_to_nearest_wall(my_predicted_parts[part_index].pos,
-                                      ctx->config) /
-             (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
-             ctx->my_parts.size();
+      change_score(-((speed_loss - speed_loss_limit) * 25000.0),
+                   "Speed Limit Loss");
+    change_score(
+        500. *
+            distance_to_nearest_wall(my_predicted_parts[part_index].pos,
+                                     ctx->config) /
+            (std::min(ctx->config.game_width, ctx->config.game_height) / 2.) /
+            ctx->my_parts.size(),
+        "Bonus for Center");
     for (auto &f : m_fusions) {
       if (can_eat(f.mass, ctx->my_parts[part_index].mass * 0.95)) {
+        dangerous_enemy_present = true;
         auto r = radius_by_mass(f.mass);
         auto eating_dist = eating_distance(r, ctx->my_parts[part_index].radius);
         auto dist = f.pos.distance_to(my_predicted_parts[part_index].pos);
         if (dist < 3 * eating_dist) {
-          score -= (3 * eating_dist - dist) * 4000;
+          change_score(-(3 * eating_dist - dist) * 4000,
+                       "Danger of enemy fusion");
         }
       }
     }
@@ -156,7 +189,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
   deviation /= my_predicted_parts.size();
   deviation = sqrt(deviation);
   if (deviation > 100.0) {
-    score -= (deviation - 100.0) * 1000.0;
+    change_score(-(deviation - 100.0) * 1000.0, "Deviation from center");
   }
   std::unordered_set<size_t> food_taken, ejection_taken, virus_bumped;
 
@@ -167,13 +200,26 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     auto mp = ctx->my_parts[part_index];
     advance(mp, target - my_predicted_parts[part_index].pos, ticks,
             ctx->config);
+    if constexpr (debug_bump_prediction) {
+      m_debug_lines.push_back({ctx->my_parts[part_index].pos, mp.pos});
+      m_debug_line_colors.emplace_back("#000");
+    }
+
+    if (dangerous_enemy_present) {
+      auto mh_dist_to_corner =
+          distance_to_nearest_wall_by_x(mp.pos, mp.radius, ctx->config) +
+          distance_to_nearest_wall_by_y(mp.pos, mp.radius, ctx->config);
+      if (mh_dist_to_corner < 10 * mp.radius)
+        change_score(-100.0 * (10 * mp.radius - mh_dist_to_corner),
+                     "Avoid corners penalty");
+    }
 
     if (distance_to_nearest_wall(mp.pos, mp.radius, ctx->config) < 1e-5)
-      score -= 100000.0;
+      change_score(-100000.0, "Bump into walls penalty");
   }
 
   for (auto iteration : range(0, future_scan_iteration_count)) {
-    auto check_food_like = [this, &score, iteration,
+    auto check_food_like = [this, iteration, &change_score,
                             &alive_parts](auto &arr, auto &taken, double mass) {
       for (auto food_index : indices(arr)) {
         if (taken.count(food_index))
@@ -182,7 +228,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
           if (arr[food_index].pos.is_in_circle(
                   my_predicted_parts[part_index].pos,
                   ctx->my_parts[part_index].radius)) {
-            score += (future_scan_iteration_count - iteration) * 10 * mass;
+            change_score((future_scan_iteration_count - iteration) * 10 * mass,
+                         "Food bonus");
             taken.insert(food_index);
           }
         }
@@ -201,8 +248,9 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
                                      ctx->my_parts[part_index].mass * 1.05)) {
             const double score_per_virus =
                 is_splitting_dangerous() ? 10000 : 300;
-            score -=
-                (future_scan_iteration_count - iteration) * score_per_virus;
+            change_score(-(future_scan_iteration_count - iteration) *
+                             score_per_virus,
+                         "Virus bumping in presence of the enemy penalty");
             virus_bumped.insert(virus_index);
           }
         }
@@ -218,7 +266,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
         auto &p = ctx->my_parts[part_index];
         if (can_eat(p.mass, my_predicted_parts[part_index].pos, p.radius,
                     enemy.mass, enemy.pos, enemy.radius)) {
-          score += 50 * enemy.mass;
+          change_score(50 * enemy.mass, "Eating enemy bonus");
           players_taken.insert(enemy_index);
         }
       }
@@ -246,7 +294,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
           auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
           if (dist < eating_dist * 2.0) {
             it = alive_parts.erase(it); // what is eaten could never eat
-            score -= (eating_dist * 2.0 - dist) * 5000.0;
+            change_score(-(eating_dist * 2.0 - dist) * 5000.0,
+                         "Being eaten penalty");
             do_continue = true;
             break;
           }
@@ -256,7 +305,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       ++it;
     }
   }
-  score += std::uniform_real_distribution<double>(0, 100)(m_re);
+  change_score(std::uniform_real_distribution<double>(0, 100)(m_re), "Entropy");
 #if DEBUG_FUTURE_OUTCOMES
   auto s = m_debug_line_colors.size();
   m_debug_line_colors.resize(m_debug_lines.size());
@@ -266,6 +315,14 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
                 to_hex(std::clamp(0, static_cast<int>(score / 10.), 255)) +
                 "00");
 #endif
+  if (ctx->is_debug_tick()) {
+    std::cout << "Score for ("s + std::to_string(target.x) + "," +
+                     std::to_string(target.y) + ") = " + std::to_string(score) +
+                     "\n";
+    std::cout << "Details:\n";
+    for (auto &[reason, amount] : reasons_stacked)
+      std::cout << "reason:" << reason << " - " << amount << '\n';
+  }
   return score;
 }
 
@@ -291,8 +348,10 @@ Response MaxSpeedStrategy::get_response_impl() {
   m_debug_lines.clear();
   m_debug_line_colors.clear();
 #endif
+  m_debug.clear();
+
   Point best_target;
-  double best_angle_score = -std::numeric_limits<int>::min();
+  double best_target_score = -std::numeric_limits<int>::min();
 
   double min_angle = 0;
   double max_angle = 2 * constant::pi;
@@ -316,9 +375,10 @@ Response MaxSpeedStrategy::get_response_impl() {
                        (2 * j - 1) * enemy_vision.state.radius},
              enemy_vision.state.pos});
         std::string s = "#";
-        auto h = to_hex ((ctx->tick - enemy_vision.tick) * 255 / remember_enemies_tick_count);
-        for (auto i : range (0, 3))
-            s += h;
+        auto h = to_hex((ctx->tick - enemy_vision.tick) * 255 /
+                        remember_enemies_tick_count);
+        for (auto i : range(0, 3))
+          s += h;
         m_debug_line_colors.emplace_back(s);
       }
 #endif
@@ -326,8 +386,8 @@ Response MaxSpeedStrategy::get_response_impl() {
   auto check_target = [&](const Point &target) {
     double score = calc_target_score(target);
 
-    if (score > best_angle_score) {
-      best_angle_score = score;
+    if (score > best_target_score) {
+      best_target_score = score;
       best_target = target;
     }
   };
@@ -354,15 +414,14 @@ Response MaxSpeedStrategy::get_response_impl() {
   if (!ctx->enemies.empty())
     max_enemy_mass = std::max(max_enemy_mass, ctx->enemies.front().mass);
 
-  for (auto it = ctx->enemy_seen_by_tick.begin (); it != ctx->enemy_seen_by_tick.end (); ++it)
-  {
-    if (it->first < ctx->tick - 50)
+  for (auto [tick, enemy_id] : ctx->enemy_ids_seen_by_tick) {
+    if (tick < ctx->tick - 50)
       continue;
     max_enemy_mass =
-        std::max(ctx->enemy_by_id[it->second].state.mass, max_enemy_mass);
+        std::max(ctx->enemy_by_id[enemy_id].state.mass, max_enemy_mass);
   }
 
-  r.debug("Score: " + std::to_string(best_angle_score));
+  r.debug(m_debug + "Best Score: " + std::to_string(best_target_score));
   if (!is_splitting_dangerous() &&
       ctx->my_parts.size() < ctx->config.max_fragments_cnt &&
       max_enemy_mass <

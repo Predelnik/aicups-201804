@@ -29,6 +29,14 @@ public:
   void initialize(const json &data);
   void update(const json &data);
   void remove_enemies_older_than(int n_ticks) const;
+  inline bool is_debug_tick() const
+  {
+#ifdef CUSTOM_DEBUG
+      return tick >= debug_tick_start && tick < debug_tick_end;
+#else
+      return false;
+#endif
+  }
 
 private:
   void fill_objects(const json &data);
@@ -54,7 +62,7 @@ public:
   std::multimap<Point, Food *> food_map;
   std::map<PartId, KnownPlayer> prev_tick_enemy_by_id;
   mutable std::map<PartId, EnemyVision> enemy_by_id;
-  mutable std::multimap<int, PartId> enemy_seen_by_tick;
+  mutable std::multimap<int, PartId> enemy_ids_seen_by_tick;
 
   Point my_center;
   double my_radius;
@@ -63,6 +71,7 @@ public:
   int tick = 0;
   Point avg_speed;
   KnownPlayer *my_largest_part = nullptr;
+  int debug_tick_start = -1, debug_tick_end = -1;
 
 private:
   std::default_random_engine m_re;
