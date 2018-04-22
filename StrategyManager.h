@@ -17,7 +17,7 @@ public:
     ~StrategyManager ();
     void run ();
     json on_tick(const json& data);
-    void run_feed (const std::string &path);
+    void run_feed (const std::string &path, int tick);
 
 private:
     void update_caches();

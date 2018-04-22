@@ -57,6 +57,7 @@ private:
 
   std::deque<EnemySeen> m_enemies_seen;
   std::multiset<double> m_enemies_masses;
+  std::string m_debug;
 #ifdef CUSTOM_DEBUG
   std::vector<std::array<Point, 2>> m_debug_lines;
   std::vector<std::string> m_debug_line_colors;
