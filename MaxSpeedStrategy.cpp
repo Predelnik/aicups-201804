@@ -230,8 +230,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       auto mh_dist_to_corner =
           distance_to_nearest_wall_by_x(mp.pos, mp.radius, ctx->config) +
           distance_to_nearest_wall_by_y(mp.pos, mp.radius, ctx->config);
-      if (mh_dist_to_corner < 10 * mp.radius)
-        change_score(-100.0 * (10 * mp.radius - mh_dist_to_corner),
+      if (mh_dist_to_corner < 5 * mp.radius)
+        change_score(-100.0 * (5 * mp.radius - mh_dist_to_corner),
                      "Avoid corners penalty");
     }
 
