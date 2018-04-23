@@ -37,9 +37,10 @@ void Context::update(const json &data) {
 }
 
 void Context::remove_enemies_older_than(int n_ticks) const {
-  for (auto it = enemy_ids_seen_by_tick.begin(); it != enemy_ids_seen_by_tick.end();) {
+  for (auto it = enemy_ids_seen_by_tick.begin();
+       it != enemy_ids_seen_by_tick.end();) {
     if (it->first < tick - n_ticks) {
-      enemy_by_id.erase(it->second);
+      enemy_vision_by_id.erase(it->second);
       it = enemy_ids_seen_by_tick.erase(it);
     } else
       break;
@@ -111,11 +112,19 @@ void Context::update_enemy_speed() {
         e.ticks_to_fuse = config.ticks_til_fusion;
       else {
         e.ticks_to_fuse = it->second.ticks_to_fuse;
-        --e.ticks_to_fuse;
+        if (e.ticks_to_fuse > 0)
+          --e.ticks_to_fuse;
       }
-    } else
-      e.ticks_to_fuse =
-          std::uniform_int_distribution<int>(0, config.ticks_til_fusion / 6)(m_re);
+    } else {
+      auto it = enemy_vision_by_id.find(e.id);
+      if (it != enemy_vision_by_id.end() && it->second.state.mass > e.mass) {
+        e.ticks_to_fuse =
+            std::max(config.ticks_til_fusion - (tick - it->second.tick), 0);
+      } else {
+        e.ticks_to_fuse = std::uniform_int_distribution<int>(
+            0, config.ticks_til_fusion / 6)(m_re);
+      }
+    }
   }
 }
 
@@ -128,24 +137,25 @@ void Context::clean_up_eaten_or_fused_enemies() {
     bool should_be_visible = false;
     for (auto &part : my_parts) {
       if (current_ids.count(p.first) == 0 &&
-          p.second.pos.is_in_circle(part.visibility_center(),
-                                    part.visibility_radius(static_cast<int> (my_parts.size())) *
-                                        0.9)) {
+          p.second.pos.is_in_circle(
+              part.visibility_center(),
+              part.visibility_radius(static_cast<int>(my_parts.size())) *
+                  0.9)) {
         should_be_visible = true;
         break;
       }
     }
     if (should_be_visible) {
       // supposedly was eaten or fused
-      auto it = enemy_by_id.find(p.first);
-      if (it != enemy_by_id.end()) {
+      auto it = enemy_vision_by_id.find(p.first);
+      if (it != enemy_vision_by_id.end()) {
         auto rng = enemy_ids_seen_by_tick.equal_range(it->second.tick);
         for (auto jt = rng.first; jt != rng.second;)
           if (jt->second == p.second.id)
             jt = enemy_ids_seen_by_tick.erase(jt);
           else
             ++jt;
-        enemy_by_id.erase(it);
+        enemy_vision_by_id.erase(it);
       }
     }
   }
@@ -158,8 +168,8 @@ void Context::update_enemies_by_id() {
 
   for (auto &e : enemies) {
     prev_tick_enemy_by_id[e.id] = e;
-    auto it = enemy_by_id.find(e.id);
-    if (it != enemy_by_id.end()) {
+    auto it = enemy_vision_by_id.find(e.id);
+    if (it != enemy_vision_by_id.end()) {
       auto p = enemy_ids_seen_by_tick.equal_range(it->second.tick);
       for (auto jt = p.first; jt != p.second;)
         if (jt->second == e.id)
@@ -167,7 +177,7 @@ void Context::update_enemies_by_id() {
         else
           ++jt;
     }
-    enemy_by_id[e.id] = {e, tick};
+    enemy_vision_by_id[e.id] = {e, tick};
     enemy_ids_seen_by_tick.insert({tick, e.id});
   }
 }

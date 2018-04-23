@@ -151,7 +151,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     if (tick < ctx->tick - 50)
       continue;
     for (auto &p : ctx->my_parts)
-      if (can_eat(ctx->enemy_by_id[enemy_id].state.mass, p.mass * 0.95)) {
+      if (can_eat(ctx->enemy_vision_by_id[enemy_id].state.mass, p.mass * 0.95)) {
         dangerous_enemy_present = true;
         break;
       }
@@ -484,7 +484,7 @@ Response MaxSpeedStrategy::get_response_impl() {
     if (tick < ctx->tick - 50)
       continue;
     max_enemy_mass =
-        std::max(ctx->enemy_by_id[enemy_id].state.mass, max_enemy_mass);
+        std::max(ctx->enemy_vision_by_id[enemy_id].state.mass, max_enemy_mass);
   }
 
   r.debug(m_debug + "Best Score: " + std::to_string(best_target_score));
