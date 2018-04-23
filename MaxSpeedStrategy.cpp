@@ -60,8 +60,10 @@ void MaxSpeedStrategy::calculate_fusions(
   for (auto enemy_index : indices(enemies)) {
     if (m_fused[enemy_index])
       continue;
-    if (enemies[enemy_index].ticks_to_fuse > 50)
+    if (enemies[enemy_index].ticks_to_fuse > 50) {
+      m_fused[enemy_index] = 1;
       continue;
+    }
 
     m_fusions.clear();
     m_fusions.push_back(enemies[enemy_index]);
@@ -82,8 +84,10 @@ void MaxSpeedStrategy::calculate_fusions(
           continue;
 
         if (enemies[ind].id.player_num == m_fusions.back().id.player_num) {
-          if (enemies[enemy_index].ticks_to_fuse > 50)
-            continue;
+          {
+            if (enemies[ind].ticks_to_fuse > 50)
+              continue;
+          }
         } else {
           // fusing of different enemies (aka eating)
           auto m1 = enemies[ind].mass;
@@ -95,7 +99,7 @@ void MaxSpeedStrategy::calculate_fusions(
 
         ++cnt;
         fusion_happened = true;
-        m_fused[ind] = true;
+        m_fused[ind] = 2;
         m_fusions.back().pos += enemies[ind].pos * enemies[ind].mass;
         m_fusions.back().mass += enemies[ind].mass;
       }
@@ -151,7 +155,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
     if (tick < ctx->tick - 50)
       continue;
     for (auto &p : ctx->my_parts)
-      if (can_eat(ctx->enemy_vision_by_id[enemy_id].state.mass, p.mass * 0.95)) {
+      if (can_eat(ctx->enemy_vision_by_id[enemy_id].state.mass,
+                  p.mass * 0.95)) {
         dangerous_enemy_present = true;
         break;
       }
@@ -357,7 +362,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
               eating_distance(enemy.radius, ctx->my_parts[*it].radius);
           auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
           if (dist < eating_dist * 2.0) {
-            change_score(-(eating_dist * 2.0 - dist) * 100.0 * ctx->my_parts[*it].mass,
+            change_score(-(eating_dist * 2.0 - dist) * 100.0 *
+                             ctx->my_parts[*it].mass,
                          "Being eaten penalty");
             it = alive_parts.erase(it); // what is eaten could never eat
             do_continue = true;
