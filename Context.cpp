@@ -108,7 +108,7 @@ void Context::update_enemy_speed() {
             ? e.pos - it->second.pos
             : (my_center - e.pos).normalized() * max_speed(e.mass, config);
     if (it != prev_tick_enemy_by_id.end()) {
-      if (e.mass > it->second.mass * 1.75)
+      if (e.mass * 1.75 < it->second.mass)
         e.ticks_to_fuse = config.ticks_til_fusion;
       else {
         e.ticks_to_fuse = it->second.ticks_to_fuse;
@@ -117,7 +117,7 @@ void Context::update_enemy_speed() {
       }
     } else {
       auto it = enemy_vision_by_id.find(e.id);
-      if (it != enemy_vision_by_id.end() && it->second.state.mass > e.mass) {
+      if (it != enemy_vision_by_id.end() && it->second.state.mass > e.mass * 1.75) {
         e.ticks_to_fuse =
             std::max(config.ticks_til_fusion - (tick - it->second.tick), 0);
       } else {
