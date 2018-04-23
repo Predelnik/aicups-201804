@@ -281,7 +281,8 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
         for (auto part_index : alive_parts) {
           if (arr[food_index].pos.is_in_circle(
                   my_predicted_parts[part_index].pos,
-                  ctx->my_parts[part_index].radius)) {
+                  my_predicted_parts[part_index].radius)) {
+            my_predicted_parts[part_index].mass += mass;
             change_score((future_scan_iteration_count - iteration) * 10 * mass,
                          "Food bonus");
             taken.insert(food_index);
@@ -349,6 +350,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       advance(my_predicted_parts[part_index],
               target - my_predicted_parts[part_index].pos, scan_precision,
               ctx->config);
+      my_predicted_parts[part_index].radius = radius_by_mass(my_predicted_parts[part_index].mass);
 #if DEBUG_FUTURE_OUTCOMES
       m_debug_lines.back()[1] = my_predicted_parts[part_index].pos;
 #endif
