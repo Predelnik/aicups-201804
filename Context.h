@@ -61,7 +61,7 @@ public:
 
   std::multimap<Point, Food *> food_map;
   std::map<PartId, KnownPlayer> prev_tick_enemy_by_id;
-  mutable std::map<PartId, EnemyVision> enemy_by_id;
+  mutable std::map<PartId, EnemyVision> enemy_vision_by_id;
   mutable std::multimap<int, PartId> enemy_ids_seen_by_tick;
 
   Point my_center;
