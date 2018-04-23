@@ -241,7 +241,10 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 
     for (auto &e : ctx->enemies) {
       auto check_rect = [&](const std::array<Point, 2> &rect) {
-        if (fabs(rect[0].x - rect[1].x) * fabs(rect[0].y - rect[1].y) > 7600.0)
+        if (std::max(fabs(rect[0].x - rect[1].x), fabs(rect[0].y - rect[1].y)) >
+            300.0)
+          return;
+        if (fabs(rect[0].x - rect[1].x) * fabs(rect[0].y - rect[1].y) > 40000.0)
           return;
 #ifdef CUSTOM_DEBUG
         if constexpr (debug_rect_between_wall_and_enemy) {
@@ -258,11 +261,12 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
         }
 #endif
         if (mp.pos.is_in_rect(rect)) {
-          change_score(-20000.0, "Being stuck between wall and enemy");
+          change_score(-30.0 * ctx->my_parts[part_index].mass,
+                       "Being stuck between wall and enemy");
         }
       };
       if (can_eat(e.mass, ctx->my_parts[part_index].mass)) {
-        auto r = e.radius * 1.1;
+        auto r = e.radius * 1.5;
         check_rect({Point{0, e.pos.y - r}, Point{e.pos.x + r, e.pos.y + r}});
         check_rect({Point{e.pos.x - r, e.pos.y - r},
                     Point{ctx->config.game_width, e.pos.y + r}});
