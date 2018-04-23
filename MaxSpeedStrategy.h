@@ -41,7 +41,6 @@ private:
   int get_scan_precision() const;
   double calc_target_score(const Point &target);
   bool is_splitting_dangerous() const;
-  void calculate_predicted_enemies();
   Response get_response_impl();
   void remove_eaten_food();
   void remove_stale_food();
@@ -52,8 +51,7 @@ private:
   std::deque<FoodSeen> m_food_seen;
   std::multiset<Point> m_food_seen_set;
   std::vector<KnownPlayer> m_fusions;
-  std::array<std::vector<KnownPlayer>, future_scan_iteration_count>
-      m_predicted_enemies;
+  std::vector<KnownPlayer> m_predicted_enemies;
 
   std::deque<EnemySeen> m_enemies_seen;
   std::multiset<double> m_enemies_masses;

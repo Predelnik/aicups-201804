@@ -146,6 +146,7 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
   };
   static std::vector<KnownPlayer> my_predicted_parts;
   my_predicted_parts = ctx->my_parts;
+  m_predicted_enemies = ctx->enemies;
   std::set<size_t> alive_parts;
   for (auto my_part_index : indices(ctx->my_parts))
     alive_parts.insert(my_part_index);
@@ -325,19 +326,20 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       }
     }
 
-    std::set<size_t> players_taken;
-    for (auto enemy_index : indices(m_predicted_enemies[iteration])) {
+    std::set<size_t> enemies_eaten;
+    for (auto enemy_index : indices(m_predicted_enemies)) {
       if (m_fused[enemy_index] == 2)
         continue;
-      if (players_taken.count(enemy_index))
+      if (enemies_eaten.count(enemy_index))
         continue;
       for (auto part_index : alive_parts) {
-        auto &enemy = m_predicted_enemies[iteration][enemy_index];
-        auto &p = ctx->my_parts[part_index];
+        auto &enemy = m_predicted_enemies[enemy_index];
+        auto &p = my_predicted_parts[part_index];
         if (can_eat(p.mass, my_predicted_parts[part_index].pos, p.radius,
                     enemy.mass, enemy.pos, enemy.radius)) {
           change_score(50 * enemy.mass, "Eating enemy bonus");
-          players_taken.insert(enemy_index);
+          p.mass += enemy.mass;
+          enemies_eaten.insert(enemy_index);
         }
       }
     }
@@ -350,28 +352,40 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
       advance(my_predicted_parts[part_index],
               target - my_predicted_parts[part_index].pos, scan_precision,
               ctx->config);
-      my_predicted_parts[part_index].radius = radius_by_mass(my_predicted_parts[part_index].mass);
+      my_predicted_parts[part_index].radius =
+          radius_by_mass(my_predicted_parts[part_index].mass);
 #if DEBUG_FUTURE_OUTCOMES
       m_debug_lines.back()[1] = my_predicted_parts[part_index].pos;
 #endif
     }
 
+    for (auto &e : m_predicted_enemies) {
+      advance(e, e.speed, scan_precision, ctx->config);
+      e.radius = radius_by_mass(e.mass);
+    }
+
     for (auto it = alive_parts.begin(); it != alive_parts.end();) {
       bool do_continue = false;
-      for (auto &enemy : m_predicted_enemies[iteration])
-        if (can_eat(enemy.mass, ctx->my_parts[*it].mass * 0.95)) {
-          auto eating_dist =
-              eating_distance(enemy.radius, ctx->my_parts[*it].radius);
-          auto dist = enemy.pos.distance_to(my_predicted_parts[*it].pos);
-          if (dist < eating_dist * 2.0) {
-            change_score(-(eating_dist * 2.0 - dist) * 100.0 *
-                             ctx->my_parts[*it].mass,
-                         "Being eaten penalty");
-            it = alive_parts.erase(it); // what is eaten could never eat
-            do_continue = true;
-            break;
-          }
+      for (auto enemy_index : indices(m_predicted_enemies)) {
+        if (enemies_eaten.count(enemy_index) > 0)
+          continue;
+        if (!can_eat(m_predicted_enemies[enemy_index].mass,
+                     ctx->my_parts[*it].mass * 0.95))
+          continue;
+        auto eating_dist = eating_distance(
+            m_predicted_enemies[enemy_index].radius, ctx->my_parts[*it].radius);
+        auto dist = m_predicted_enemies[enemy_index].pos.distance_to(
+            my_predicted_parts[*it].pos);
+        if (dist < eating_dist * 2.0) {
+          change_score(-(eating_dist * 2.0 - dist) * 100.0 *
+                           ctx->my_parts[*it].mass,
+                       "Being eaten penalty");
+          m_predicted_enemies[enemy_index].mass += ctx->my_parts[*it].mass;
+          it = alive_parts.erase(it); // what is eaten could never eat
+          do_continue = true;
+          break;
         }
+      }
       if (do_continue)
         continue;
       ++it;
@@ -403,18 +417,6 @@ double MaxSpeedStrategy::calc_target_score(const Point &target) {
 bool MaxSpeedStrategy::is_splitting_dangerous() const {
   return false;
   // return ctx->config.inertia_factor < 4.0;
-}
-
-void MaxSpeedStrategy::calculate_predicted_enemies() {
-  const auto scan_precision = get_scan_precision();
-  m_predicted_enemies.front() = ctx->enemies;
-  for (auto iteration : indices(m_predicted_enemies)) {
-    if (iteration > 0)
-      m_predicted_enemies[iteration] = m_predicted_enemies[iteration - 1];
-    for (auto &enemy : m_predicted_enemies[iteration]) {
-      advance(enemy, enemy.speed, scan_precision, ctx->config);
-    }
-  }
 }
 
 Response MaxSpeedStrategy::get_response_impl() {
@@ -465,8 +467,7 @@ Response MaxSpeedStrategy::get_response_impl() {
       best_target = target;
     }
   };
-  calculate_predicted_enemies();
-  calculate_fusions(m_predicted_enemies.front());
+  calculate_fusions(ctx->enemies);
 
   for (auto angle_try : range(0, angle_partition_count)) {
     double angle =
